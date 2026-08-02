@@ -1,0 +1,10 @@
+allowBuilds:
+  argon2: true
+  esbuild: true
+  vue-demi: true
+# pnpm v11 defaults to minimumReleaseAge: 1440 (packages must be 24h+ old before
+# install) as a supply-chain safety net. Good default for production/CI - too strict
+# for solo local dev, where you're not shipping anything and just want `pnpm install`
+# to work. Set to 0 to disable for this project, or raise it back up (e.g. 1440) once
+# you're closer to deploying and want the protection back.
+minimumReleaseAge: 0

@@ -1,0 +1,37 @@
+{
+  "name": "retailshop-erp",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "typecheck": "nuxi typecheck",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx server/db/migrate.ts",
+    "db:seed": "tsx server/db/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "nuxt": "^4.5.0",
+    "vue": "^3.5.0",
+    "@nuxt/ui": "^4.0.0",
+    "drizzle-orm": "^0.36.0",
+    "dotenv": "^16.4.7",
+    "postgres": "^3.4.4",
+    "zod": "^3.23.8",
+    "better-auth": "^1.1.0",
+    "argon2": "^0.41.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.28.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vue-tsc": "^3.1.8",
+    "vitest": "^2.1.0",
+    "@vue/test-utils": "^2.4.0"
+  }
+}
