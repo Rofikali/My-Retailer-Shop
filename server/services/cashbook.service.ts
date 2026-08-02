@@ -8,7 +8,7 @@ import type { CashTxnInputType } from '../utils/validation/cashTxn'
 // quick, single-line transactions; anything that needs line-item detail (a multi-product
 // sale, a multi-item purchase) should go through the Sales/Purchase modules instead,
 // which post their own, more detailed ledger lines.
-const CATEGORY_TO_ACCOUNT: Record<string, string> = {
+const CATEGORY_TO_ACCOUNT: Record<CashTxnInputType['category'], string> = {
   capital: 'CAPITAL',
   sales: 'SALES-REV',
   expense: 'EXP-OTHER',
@@ -54,6 +54,9 @@ export class CashBookService {
         referenceNo: input.referenceNo,
         createdBy: userId
       })
+      if (!cashTxnRow) {
+        throw new Error('Cash transaction was not created.')
+      }
 
       await this.ledger.post(
         tx as unknown as Database,

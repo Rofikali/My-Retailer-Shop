@@ -48,6 +48,20 @@ pnpm run dev
 
 Then log in at `http://localhost:3000/login`.
 
+## Default development login
+
+After running `pnpm run db:seed`, sign in with:
+
+- **Email:** `
+owner@example.com
+`
+- **Password:** `
+ChangeMe123!
+`
+
+These defaults apply only when `SEED_OWNER_EMAIL` and `SEED_OWNER_PASSWORD` are not set in `.env`.
+Change the seeded password before using the application with real business data.
+
 ## Troubleshooting
 
 **`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` on `pnpm install`**
