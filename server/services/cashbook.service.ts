@@ -52,11 +52,9 @@ export class CashBookService {
         payment: String(input.payment),
         paymentMode: input.paymentMode,
         referenceNo: input.referenceNo,
+        remarks: input.remarks,
         createdBy: userId
       })
-      if (!cashTxnRow) {
-        throw new Error('Cash transaction was not created.')
-      }
 
       await this.ledger.post(
         tx as unknown as Database,

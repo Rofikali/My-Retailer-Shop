@@ -188,6 +188,8 @@ export const expenses = pgTable('expenses', {
 // ---------------------------------------------------------------------------
 // Cash Book  (human-readable receipts & payments view; ledger_entries remains authoritative)
 // ---------------------------------------------------------------------------
+export const cashTxnStatusEnum = pgEnum('cash_txn_status', ['posted', 'reversed'])
+
 export const cashTxns = pgTable('cash_txns', {
   id: uuid('id').primaryKey().defaultRandom(),
   txnDate: date('txn_date').notNull(),
@@ -198,6 +200,15 @@ export const cashTxns = pgTable('cash_txns', {
   payment: numeric('payment', { precision: 12, scale: 2 }).notNull().default('0'),
   paymentMode: text('payment_mode'),
   referenceNo: text('reference_no'),
+  status: cashTxnStatusEnum('status').notNull().default('posted'),
+  remarks: text('remarks'),
   createdBy: uuid('created_by').references(() => users.id),
+  approvedBy: uuid('approved_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
+// Note: voucherType ("Receipt"/"Payment") and accountHead ("<Category> Account") from
+// your sheet are DERIVED, not stored - computed in CashBookRepo.list() from receipt/
+// payment and category. Storing them as separate columns would let them drift from the
+// row they describe, which is exactly the class of bug this whole system exists to
+// avoid. Same reasoning for Running Balance - computed with a SQL window function on
+// read, never stored, so it can never go stale relative to the transactions.

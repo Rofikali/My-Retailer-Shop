@@ -1,6 +1,6 @@
+import 'dotenv/config'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { db } from './client'
-import 'dotenv/config'
 
 async function main() {
   console.log('Running migrations...')

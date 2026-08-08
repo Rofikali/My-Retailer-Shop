@@ -1,10 +1,17 @@
-allowBuilds:
-  argon2: true
-  esbuild: true
-  vue-demi: true
 # pnpm v11 defaults to minimumReleaseAge: 1440 (packages must be 24h+ old before
 # install) as a supply-chain safety net. Good default for production/CI - too strict
 # for solo local dev, where you're not shipping anything and just want `pnpm install`
 # to work. Set to 0 to disable for this project, or raise it back up (e.g. 1440) once
 # you're closer to deploying and want the protection back.
 minimumReleaseAge: 0
+
+# Pre-approved to run their install/postinstall scripts. `pnpm approve-builds` writes
+# choices here too (as of pnpm v11 - it's no longer stored in package.json) - recorded
+# directly instead of relying on an interactive prompt every time the lockfile changes.
+#   argon2    - native password-hashing binary, required for AuthService to work at all
+#   esbuild   - native binary used by Nuxt/Vite/tsx's build tooling
+#   vue-demi  - small postinstall step some Nuxt UI internals rely on to detect Vue version
+allowBuilds:
+  argon2: true
+  esbuild: true
+  vue-demi: true

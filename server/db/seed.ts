@@ -1,7 +1,7 @@
+import 'dotenv/config'
 import { db } from './client'
 import { accounts, users, businessProfile } from './schema'
 import argon2 from 'argon2'
-import 'dotenv/config'
 
 // Chart of accounts, seeded to match exactly what the P&L / Balance Sheet / Trial
 // Balance queries expect. Add expense sub-categories here as you actually use them

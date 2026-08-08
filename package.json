@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.18.0",
   "scripts": {
+    "postinstall": "nuxt prepare",
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
@@ -12,14 +13,16 @@
     "db:migrate": "tsx server/db/migrate.ts",
     "db:seed": "tsx server/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run tests/unit",
+    "test:watch": "vitest tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:all": "pnpm run test && pnpm run test:integration"
   },
   "dependencies": {
     "@nuxt/ui": "^4.0.0",
     "argon2": "^0.41.1",
     "better-auth": "^1.1.0",
-    "dotenv": "^16.4.7",
     "drizzle-orm": "^0.36.0",
     "nuxt": "^4.5.0",
     "postgres": "^3.4.4",
@@ -27,12 +30,15 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^24.0.0",
+    "@playwright/test": "^1.48.0",
     "@vue/test-utils": "^2.4.0",
+    "dotenv": "^16.4.5",
     "drizzle-kit": "^0.28.0",
+    "h3": "^1.13.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0",
-    "vue-tsc": "^3.1.8"
+    "vue-tsc": "^3.3.9"
   }
 }

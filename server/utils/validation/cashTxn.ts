@@ -9,7 +9,8 @@ export const CashTxnInput = z.object({
   receipt: z.number().min(0).default(0),
   payment: z.number().min(0).default(0),
   paymentMode: z.enum(['Cash', 'UPI', 'Bank Transfer', 'Other']),
-  referenceNo: z.string().max(100).optional()
+  referenceNo: z.string().max(100).optional(),
+  remarks: z.string().max(500).optional()
 }).refine((data) => (data.receipt > 0) !== (data.payment > 0), {
   message: 'Exactly one of receipt or payment must be greater than zero, not both and not neither.'
 })

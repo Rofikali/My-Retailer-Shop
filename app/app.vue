@@ -11,7 +11,9 @@ const navItems = [
   { to: '/expenses', label: 'Expenses' },
   { to: '/customers', label: 'Customers' },
   { to: '/suppliers', label: 'Suppliers' },
-  { to: '/reports/trial-balance', label: 'Reports' }
+  { to: '/reports/trial-balance', label: 'Reports' },
+  { to: '/admin/users', label: 'Admin' },
+  { to: '/admin/settings', label: 'Settings' }
 ]
 </script>
 

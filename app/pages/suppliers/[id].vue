@@ -1,20 +1,69 @@
 <script setup lang="ts">
-// STUB — not yet implemented. Build this following the exact same pattern as
-// app/pages/cashbook/index.vue + server/services/cashbook.service.ts:
-//   1. server/repositories/suppliers.repo.ts   — Drizzle queries only
-//   2. server/services/suppliers.service.ts    — business logic, calls LedgerService
-//      inside a db.transaction() for anything that posts to the ledger
-//   3. server/api/suppliers/index.get.ts + index.post.ts — thin route handlers
-//   4. this page — list + form, same structure as Cash Book
-// See docs/04-LLD.md section 2 for the full Record-a-Credit-Sale sequence this generalizes from.
+interface LedgerRow {
+  id: string
+  entryDate: string
+  debit: string
+  credit: string
+  description: string | null
+}
+interface SupplierDetail {
+  id: string
+  code: string
+  name: string
+  contactPerson: string | null
+  phone: string | null
+  outstandingBalance: number
+  ledger: LedgerRow[]
+}
+
+const route = useRoute()
+const { data } = await useFetch<SupplierDetail>(`/api/suppliers/${route.params.id}`)
+
+function fmt(v: number | string) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
+}
+
+// Creditors are credit-normal: running balance = cumulative Credit - Debit, the
+// opposite convention from the Customer Ledger's Debit - Credit. See
+// SuppliersRepo.getOutstandingBalance() for the same rule applied to the total.
+const runningLedger = computed(() => {
+  if (!data.value) return []
+  let balance = 0
+  return data.value.ledger.map((row) => {
+    balance += Number(row.credit) - Number(row.debit)
+    return { ...row, runningBalance: balance }
+  })
+})
 </script>
 
 <template>
-  <div>
-    <h1 style="font-size: 20px; margin-bottom: 12px;">Supplier Ledger</h1>
-    <div class="card" style="border-style: dashed; color: var(--color-text-muted);">
-      Not yet implemented — the database schema and architecture already support this module.
-      Follow the Cash Book page/service/repository as the reference pattern (see comment in this file).
+  <div v-if="data">
+    <NuxtLink to="/suppliers" style="font-size: 13px;">← Back to Suppliers</NuxtLink>
+    <h1 style="font-size: 20px; margin: 12px 0 4px;">{{ data.name }} <span style="color: var(--color-text-muted); font-weight: 400;">({{ data.code }})</span></h1>
+    <p style="color: var(--color-text-muted); margin-bottom: 20px;">{{ data.contactPerson || '—' }} · {{ data.phone || '—' }}</p>
+
+    <div class="card" style="max-width: 300px; margin-bottom: 20px;">
+      <div style="font-size: 12px; color: var(--color-text-muted);">Outstanding Balance (owed by us)</div>
+      <div class="kpi-value" style="font-size: 22px; font-weight: 700;">{{ fmt(data.outstandingBalance) }}</div>
     </div>
+
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
+          <th style="padding: 8px;">Date</th><th style="padding: 8px;">Description</th>
+          <th style="padding: 8px; text-align: right;">Debit (Payments)</th><th style="padding: 8px; text-align: right;">Credit (Purchases)</th>
+          <th style="padding: 8px; text-align: right;">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in runningLedger" :key="row.id" style="border-bottom: 1px solid var(--color-border);">
+          <td style="padding: 8px;">{{ row.entryDate }}</td>
+          <td style="padding: 8px;">{{ row.description || '—' }}</td>
+          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ Number(row.debit) > 0 ? fmt(row.debit) : '—' }}</td>
+          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ Number(row.credit) > 0 ? fmt(row.credit) : '—' }}</td>
+          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ fmt(row.runningBalance) }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

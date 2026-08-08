@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  unit-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: 'pnpm' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run test
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: retailshop_test
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: devpassword
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://app:devpassword@localhost:5432/retailshop_test
+      DATABASE_URL: postgres://app:devpassword@localhost:5432/retailshop_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: 'pnpm' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run db:generate
+      - run: pnpm run db:migrate
+      - run: pnpm run test:integration
+
+  # E2E is deliberately NOT run in CI yet - it needs a full running app + seeded data
+  # (see docs/08-Testing-Strategy.md §4 and playwright.config.ts). Add a `build` +
+  # `preview` + `playwright test` job here once the app is further along; running it
+  # against an unfinished scaffold on every PR would be noise, not signal.

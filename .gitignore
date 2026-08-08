@@ -1,13 +1,7 @@
 node_modules/
 .nuxt/
 .output/
-dist/
-coverage/
-*.tsbuildinfo
-
 .env
-.env.*
-!.env.example
-
+dist/
 *.log
 .DS_Store

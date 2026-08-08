@@ -1,20 +1,181 @@
 <script setup lang="ts">
-// STUB — not yet implemented. Build this following the exact same pattern as
-// app/pages/cashbook/index.vue + server/services/cashbook.service.ts:
-//   1. server/repositories/purchases.repo.ts   — Drizzle queries only
-//   2. server/services/purchases.service.ts    — business logic, calls LedgerService
-//      inside a db.transaction() for anything that posts to the ledger
-//   3. server/api/purchases/index.get.ts + index.post.ts — thin route handlers
-//   4. this page — list + form, same structure as Cash Book
-// See docs/04-LLD.md section 2 for the full Record-a-Credit-Sale sequence this generalizes from.
+interface Purchase {
+  id: string
+  purchaseNo: string
+  purchaseDate: string
+  paymentMode: string
+  status: string
+  supplierName: string | null
+}
+interface Product {
+  id: string
+  code: string
+  name: string
+  costPrice: string | null
+}
+interface Supplier {
+  id: string
+  code: string
+  name: string
+}
+interface PurchaseLine {
+  productId: string
+  quantity: number
+  unitCost: number
+}
+
+const { data: purchaseList, refresh } = await useFetch<Purchase[]>('/api/purchases')
+const { data: productList } = await useFetch<Product[]>('/api/products')
+const { data: supplierList } = await useFetch<Supplier[]>('/api/suppliers')
+
+const showForm = ref(false)
+const submitting = ref(false)
+const formError = ref('')
+
+const purchaseDate = ref(new Date().toISOString().slice(0, 10))
+const paymentMode = ref<'cash' | 'upi' | 'credit'>('credit')
+const supplierId = ref('')
+const lines = ref<PurchaseLine[]>([{ productId: '', quantity: 1, unitCost: 0 }])
+
+function addLine() {
+  lines.value.push({ productId: '', quantity: 1, unitCost: 0 })
+}
+function removeLine(i: number) {
+  lines.value.splice(i, 1)
+}
+function onProductChange(line: PurchaseLine) {
+  const p = productList.value?.find((p) => p.id === line.productId)
+  if (p) line.unitCost = Number(p.costPrice ?? 0)
+}
+
+const totalAmount = computed(() => lines.value.reduce((s, l) => s + l.quantity * l.unitCost, 0))
+
+function fmt(v: number | string) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
+}
+
+async function submit() {
+  formError.value = ''
+  submitting.value = true
+  try {
+    await $fetch('/api/purchases', {
+      method: 'POST',
+      body: {
+        purchaseDate: purchaseDate.value,
+        supplierId: supplierId.value,
+        paymentMode: paymentMode.value,
+        items: lines.value.map((l) => ({ productId: l.productId, quantity: l.quantity, unitCost: l.unitCost }))
+      }
+    })
+    showForm.value = false
+    lines.value = [{ productId: '', quantity: 1, unitCost: 0 }]
+    supplierId.value = ''
+    await refresh()
+  } catch (e: any) {
+    formError.value = e?.data?.data?.formErrors?.[0] || e?.data?.statusMessage || 'Could not save purchase'
+  } finally {
+    submitting.value = false
+  }
+}
 </script>
 
 <template>
   <div>
-    <h1 style="font-size: 20px; margin-bottom: 12px;">Purchases</h1>
-    <div class="card" style="border-style: dashed; color: var(--color-text-muted);">
-      Not yet implemented — the database schema and architecture already support this module.
-      Follow the Cash Book page/service/repository as the reference pattern (see comment in this file).
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1 style="font-size: 20px; margin: 0;">Purchases</h1>
+      <button style="padding: 8px 14px; background: var(--color-accent); color: white; border: none; border-radius: 6px; cursor: pointer;" @click="showForm = !showForm">
+        {{ showForm ? 'Cancel' : '+ New Purchase' }}
+      </button>
     </div>
+
+    <div v-if="!supplierList?.length" class="card" style="border-style: dashed; margin-bottom: 16px; color: var(--color-text-muted);">
+      No suppliers yet — add one on the <NuxtLink to="/suppliers">Suppliers</NuxtLink> page before recording a purchase.
+    </div>
+    <div v-else-if="!productList?.length" class="card" style="border-style: dashed; margin-bottom: 16px; color: var(--color-text-muted);">
+      No products yet — add one on the <NuxtLink to="/inventory">Inventory</NuxtLink> page before recording a purchase.
+    </div>
+
+    <form v-if="showForm" class="card" style="margin-bottom: 20px;" @submit.prevent="submit">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div>
+          <label style="display:block; font-size:12px; margin-bottom:4px;">Date</label>
+          <input v-model="purchaseDate" type="date" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; margin-bottom:4px;">Supplier</label>
+          <select v-model="supplierId" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+            <option value="" disabled>Select supplier</option>
+            <option v-for="s in supplierList" :key="s.id" :value="s.id">{{ s.name }} ({{ s.code }})</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; margin-bottom:4px;">Payment Mode</label>
+          <select v-model="paymentMode" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+            <option value="credit">Credit</option>
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+          </select>
+        </div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+        <thead>
+          <tr style="text-align: left; font-size: 12px; color: var(--color-text-muted);">
+            <th style="padding: 4px;">Product</th>
+            <th style="padding: 4px; width: 90px;">Qty</th>
+            <th style="padding: 4px; width: 120px;">Unit Cost</th>
+            <th style="padding: 4px; width: 110px; text-align: right;">Line Total</th>
+            <th style="width: 30px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(line, i) in lines" :key="i">
+            <td style="padding: 4px;">
+              <select v-model="line.productId" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;" @change="onProductChange(line)">
+                <option value="" disabled>Select product</option>
+                <option v-for="p in productList" :key="p.id" :value="p.id">{{ p.name }} ({{ p.code }})</option>
+              </select>
+            </td>
+            <td style="padding: 4px;"><input v-model.number="line.quantity" type="number" min="0.01" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
+            <td style="padding: 4px;"><input v-model.number="line.unitCost" type="number" min="0" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
+            <td style="padding: 4px; text-align: right;" class="kpi-value">{{ fmt(line.quantity * line.unitCost) }}</td>
+            <td style="padding: 4px;">
+              <button type="button" :disabled="lines.length === 1" style="background:none; border:none; color: var(--color-danger); cursor:pointer;" @click="removeLine(i)">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button type="button" style="font-size: 13px; background: none; border: 1px dashed var(--color-border); border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-bottom: 16px;" @click="addLine">
+        + Add line
+      </button>
+
+      <div class="card" style="max-width: 260px; margin-bottom: 16px; background: var(--color-accent-soft); border: none;">
+        <div style="display:flex; justify-content:space-between; font-weight:700;"><span>Total Amount</span><span class="kpi-value">{{ fmt(totalAmount) }}</span></div>
+      </div>
+
+      <div v-if="formError" style="color: var(--color-danger); font-size: 13px; margin-bottom: 12px;">{{ formError }}</div>
+      <button type="submit" :disabled="submitting" style="padding: 10px 16px; background: var(--color-accent); color: white; border: none; border-radius: 6px; cursor: pointer;">
+        {{ submitting ? 'Saving…' : 'Save Purchase' }}
+      </button>
+    </form>
+
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
+          <th style="padding: 8px;">Date</th><th style="padding: 8px;">Purchase No</th>
+          <th style="padding: 8px;">Supplier</th><th style="padding: 8px;">Payment Mode</th><th style="padding: 8px;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="p in purchaseList" :key="p.id" style="border-bottom: 1px solid var(--color-border);">
+          <td style="padding: 8px;">{{ p.purchaseDate }}</td>
+          <td style="padding: 8px;">{{ p.purchaseNo }}</td>
+          <td style="padding: 8px;">{{ p.supplierName || '—' }}</td>
+          <td style="padding: 8px;">{{ p.paymentMode }}</td>
+          <td style="padding: 8px;">{{ p.status }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

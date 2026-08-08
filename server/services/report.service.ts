@@ -1,7 +1,5 @@
-import { db } from '../db/client'
+import { db, type Database } from '../db/client'
 import { LedgerService } from './ledger.service'
-
-const ledger = new LedgerService(db)
 
 interface ReportRow {
   accountCode: string
@@ -14,14 +12,23 @@ interface ReportRow {
  * separately-maintained number, which is precisely the property the Excel version
  * lacked - these numbers cannot drift from the transactions that produced them because
  * there is nowhere else for them to be stored.
+ *
+ * Takes an injectable Database (defaults to the real app db) so integration tests can
+ * point it at TEST_DATABASE_URL instead - see tests/integration/reports.test.ts.
  */
 export class ReportService {
+  private ledger: LedgerService
+
+  constructor(database: Database = db) {
+    this.ledger = new LedgerService(database)
+  }
+
   async trialBalance(asOfDate: string) {
-    const assets = await ledger.balancesByType('asset', undefined, asOfDate)
-    const liabilities = await ledger.balancesByType('liability', undefined, asOfDate)
-    const equity = await ledger.balancesByType('equity', undefined, asOfDate)
-    const income = await ledger.balancesByType('income', undefined, asOfDate)
-    const expense = await ledger.balancesByType('expense', undefined, asOfDate)
+    const assets = await this.ledger.balancesByType('asset', undefined, asOfDate)
+    const liabilities = await this.ledger.balancesByType('liability', undefined, asOfDate)
+    const equity = await this.ledger.balancesByType('equity', undefined, asOfDate)
+    const income = await this.ledger.balancesByType('income', undefined, asOfDate)
+    const expense = await this.ledger.balancesByType('expense', undefined, asOfDate)
 
     const rows = [...assets, ...liabilities, ...equity, ...income, ...expense].map((r) => ({
       accountCode: r.accountCode,
@@ -44,8 +51,8 @@ export class ReportService {
   }
 
   async profitAndLoss(from: string, to: string) {
-    const income = await ledger.balancesByType('income', from, to)
-    const expense = await ledger.balancesByType('expense', from, to)
+    const income = await this.ledger.balancesByType('income', from, to)
+    const expense = await this.ledger.balancesByType('expense', from, to)
 
     const toRows = (rs: typeof income): ReportRow[] =>
       rs.map((r) => ({ accountCode: r.accountCode, accountName: r.accountName, amount: Number(r.credit) - Number(r.debit) }))
@@ -66,12 +73,12 @@ export class ReportService {
   }
 
   async balanceSheet(asOfDate: string) {
-    const cash = await ledger.balanceOf(['CASH'], asOfDate)
-    const debtors = await ledger.balanceOf(['DEBTORS'], asOfDate)
-    const inventory = await ledger.balanceOf(['INVENTORY'], asOfDate)
-    const creditors = -(await ledger.balanceOf(['CREDITORS'], asOfDate)) // liability: credit-normal
-    const capital = -(await ledger.balanceOf(['CAPITAL'], asOfDate))
-    const drawings = await ledger.balanceOf(['DRAWINGS'], asOfDate)
+    const cash = await this.ledger.balanceOf(['CASH'], asOfDate)
+    const debtors = await this.ledger.balanceOf(['DEBTORS'], asOfDate)
+    const inventory = await this.ledger.balanceOf(['INVENTORY'], asOfDate)
+    const creditors = -(await this.ledger.balanceOf(['CREDITORS'], asOfDate)) // liability: credit-normal
+    const capital = -(await this.ledger.balanceOf(['CAPITAL'], asOfDate))
+    const drawings = await this.ledger.balanceOf(['DRAWINGS'], asOfDate)
 
     const pnl = await this.profitAndLoss('0001-01-01', asOfDate)
 
@@ -91,8 +98,8 @@ export class ReportService {
   }
 
   async cashFlow(from: string, to: string) {
-    const openingCash = await ledger.balanceOf(['CASH'], from)
-    const closingCash = await ledger.balanceOf(['CASH'], to)
+    const openingCash = await this.ledger.balanceOf(['CASH'], from)
+    const closingCash = await this.ledger.balanceOf(['CASH'], to)
 
     return {
       from,

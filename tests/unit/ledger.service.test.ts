@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { LedgerService } from '../server/services/ledger.service'
+import { LedgerService } from '../../server/services/ledger.service'
 
 /**
  * This is the single most important test in the codebase: it verifies the rule that
