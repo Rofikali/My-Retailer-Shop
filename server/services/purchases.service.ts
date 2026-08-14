@@ -66,14 +66,17 @@ export class PurchasesService {
         dbTx,
         [
           { accountCode: 'INVENTORY', debit: totalAmount },
-          { accountCode: creditAccount, credit: totalAmount }
+          {
+            accountCode: creditAccount,
+            credit: totalAmount,
+            supplierId: input.paymentMode === 'credit' ? input.supplierId : undefined
+          }
         ],
         {
           entryDate: input.purchaseDate,
           description: `Purchase ${purchaseNo}`,
           referenceType: 'purchase',
           referenceId: purchase.id,
-          supplierId: input.supplierId,
           createdBy: userId
         }
       )

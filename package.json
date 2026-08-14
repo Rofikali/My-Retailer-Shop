@@ -11,11 +11,12 @@
     "typecheck": "nuxi typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
+    "db:migrate:test": "tsx server/db/migrateTest.ts",
     "db:seed": "tsx server/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run tests/unit",
     "test:watch": "vitest tests/unit",
-    "test:integration": "vitest run tests/integration",
+    "test:integration": "pnpm run db:migrate:test && vitest run tests/integration",
     "test:e2e": "playwright test",
     "test:all": "pnpm run test && pnpm run test:integration"
   },

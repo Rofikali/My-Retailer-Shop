@@ -1,4 +1,4 @@
-import { eq, and, lte, gte, sql, inArray } from 'drizzle-orm'
+import { eq, and, lte, lt, gte, sql, inArray } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import { ledgerEntries, accounts } from '../db/schema'
 
@@ -6,6 +6,8 @@ export interface PostLine {
   accountCode: string
   debit?: number
   credit?: number
+  customerId?: string
+  supplierId?: string
 }
 
 export interface PostOptions {
@@ -41,8 +43,8 @@ export class LedgerRepo {
         description: opts.description,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
-        customerId: opts.customerId,
-        supplierId: opts.supplierId,
+        customerId: line.customerId,
+        supplierId: line.supplierId,
         createdBy: opts.createdBy
       }))
     )
@@ -68,6 +70,24 @@ export class LedgerRepo {
       })
       .from(ledgerEntries)
       .where(and(...conditions))
+
+    return Number(row?.net ?? 0)
+  }
+
+  async getBalanceBeforeAccountCodes(codes: string[], beforeDate: string): Promise<number> {
+    const acctIds = await this.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(inArray(accounts.code, codes))
+    const ids = acctIds.map((account) => account.id)
+    if (ids.length === 0) return 0
+
+    const [row] = await this.db
+      .select({
+        net: sql<string>`COALESCE(SUM(${ledgerEntries.debit}) - SUM(${ledgerEntries.credit}), 0)`
+      })
+      .from(ledgerEntries)
+      .where(and(inArray(ledgerEntries.accountId, ids), lt(ledgerEntries.entryDate, beforeDate)))
 
     return Number(row?.net ?? 0)
   }

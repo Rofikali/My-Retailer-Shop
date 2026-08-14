@@ -93,9 +93,8 @@ an unbalanced set of ledger lines is rejected. Everything else depends on this r
 # you already have retailshop running, create the test DB manually instead:
 docker compose exec postgres psql -U app -d retailshop -c "CREATE DATABASE retailshop_test;"
 
-# Run migrations against the test DB (uses TEST_DATABASE_URL from .env)
-DATABASE_URL=$TEST_DATABASE_URL pnpm run db:migrate
-
+# Run migrations against the test DB, then execute integration tests.
+# `test:integration` uses TEST_DATABASE_URL from .env and handles migration automatically.
 pnpm run test:integration
 ```
 Highlights:

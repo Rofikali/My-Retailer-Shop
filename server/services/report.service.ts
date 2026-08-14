@@ -30,12 +30,15 @@ export class ReportService {
     const income = await this.ledger.balancesByType('income', undefined, asOfDate)
     const expense = await this.ledger.balancesByType('expense', undefined, asOfDate)
 
-    const rows = [...assets, ...liabilities, ...equity, ...income, ...expense].map((r) => ({
-      accountCode: r.accountCode,
-      accountName: r.accountName,
-      debit: Number(r.debit),
-      credit: Number(r.credit)
-    }))
+    const rows = [...assets, ...liabilities, ...equity, ...income, ...expense].map((row) => {
+      const net = Number(row.debit) - Number(row.credit)
+      return {
+        accountCode: row.accountCode,
+        accountName: row.accountName,
+        debit: Math.max(net, 0),
+        credit: Math.max(-net, 0)
+      }
+    })
 
     const totalDebit = rows.reduce((s, r) => s + r.debit, 0)
     const totalCredit = rows.reduce((s, r) => s + r.credit, 0)
@@ -98,7 +101,7 @@ export class ReportService {
   }
 
   async cashFlow(from: string, to: string) {
-    const openingCash = await this.ledger.balanceOf(['CASH'], from)
+    const openingCash = await this.ledger.balanceBefore(['CASH'], from)
     const closingCash = await this.ledger.balanceOf(['CASH'], to)
 
     return {

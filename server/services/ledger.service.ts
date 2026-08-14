@@ -51,6 +51,10 @@ export class LedgerService {
     return this.repo.getBalanceByAccountCodes(codes, asOfDate)
   }
 
+  balanceBefore(codes: string[], beforeDate: string) {
+    return this.repo.getBalanceBeforeAccountCodes(codes, beforeDate)
+  }
+
   balancesByType(type: string, from?: string, to?: string) {
     return this.repo.getBalancesByType(type, from, to)
   }

@@ -73,7 +73,11 @@ export class SalesService {
       await this.ledger.post(
         dbTx,
         [
-          { accountCode: debitAccount, debit: totalSale },
+          {
+            accountCode: debitAccount,
+            debit: totalSale,
+            customerId: input.paymentMode === 'credit' ? input.customerId : undefined
+          },
           { accountCode: 'SALES-REV', credit: totalSale },
           { accountCode: 'COGS', debit: totalCost },
           { accountCode: 'INVENTORY', credit: totalCost }
@@ -83,7 +87,6 @@ export class SalesService {
           description: `Sale ${invoiceNo}`,
           referenceType: 'sale',
           referenceId: sale.id,
-          customerId: input.customerId,
           createdBy: userId
         }
       )
