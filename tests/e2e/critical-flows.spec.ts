@@ -14,18 +14,36 @@ import { test, expect } from '@playwright/test'
  *   - SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD match what you seeded with
  */
 
-const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL || 'owner@example.com'
-const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD || 'ChangeMe123!'
+const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL
+const OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD
+
+if (!OWNER_EMAIL || !OWNER_PASSWORD) {
+  throw new Error('SEED_OWNER_EMAIL and SEED_OWNER_PASSWORD must be set for E2E tests.')
+}
+
+async function login(page: import('@playwright/test').Page) {
+  await page.goto('/login')
+  await page.waitForFunction(() => {
+    const form = document.querySelector('form') as { __vueParentComponent?: { isMounted?: boolean } } | null
+    return form?.__vueParentComponent?.isMounted === true
+  })
+  await page.getByLabel('Email').fill(OWNER_EMAIL)
+  await page.getByLabel('Password').fill(OWNER_PASSWORD)
+  await page.getByRole('button', { name: /sign in/i }).click()
+  await expect(page).toHaveURL('/')
+}
+
+async function waitForPageHydration(page: import('@playwright/test').Page) {
+  await page.waitForFunction(() => {
+    const heading = document.querySelector('main h1') as { __vueParentComponent?: { isMounted?: boolean } } | null
+    return heading?.__vueParentComponent?.isMounted === true
+  })
+}
 
 test.describe('Critical flows', () => {
   test('login redirects to the dashboard and shows KPI cards', async ({ page }) => {
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(OWNER_EMAIL)
-    await page.getByLabel('Password').fill(OWNER_PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
-
-    await expect(page).toHaveURL('/')
-    await expect(page.getByText('Total Sales Revenue')).toBeVisible()
+    await login(page)
+    await expect(page.getByText('Total Revenue')).toBeVisible()
     await expect(page.getByText('Cash Balance')).toBeVisible()
   })
 
@@ -35,12 +53,10 @@ test.describe('Critical flows', () => {
   })
 
   test('recording a Cash Book entry appears in the table immediately', async ({ page }) => {
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(OWNER_EMAIL)
-    await page.getByLabel('Password').fill(OWNER_PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await login(page)
 
     await page.goto('/cashbook')
+    await waitForPageHydration(page)
     await page.getByRole('button', { name: '+ New Entry' }).click()
 
     const uniqueParticulars = `E2E test entry ${Date.now()}`
@@ -52,10 +68,7 @@ test.describe('Critical flows', () => {
   })
 
   test('navigating to every main nav link renders without a client-side error page', async ({ page }) => {
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(OWNER_EMAIL)
-    await page.getByLabel('Password').fill(OWNER_PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await login(page)
 
     const routes = [
       '/', '/cashbook', '/sales', '/purchases', '/inventory', '/expenses',
@@ -71,10 +84,7 @@ test.describe('Critical flows', () => {
   })
 
   test('the navigation can collapse and expand without losing links', async ({ page }) => {
-    await page.goto('/login')
-    await page.getByLabel('Email').fill(OWNER_EMAIL)
-    await page.getByLabel('Password').fill(OWNER_PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await login(page)
 
     await page.getByRole('button', { name: 'Collapse navigation' }).click()
     await expect(page.locator('.sidebar')).toHaveClass(/sidebar--collapsed/)

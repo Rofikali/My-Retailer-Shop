@@ -92,33 +92,33 @@ const columns = [
 
     <form v-if="showForm" class="card" style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;" @submit.prevent="submit">
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Date</label>
-        <input v-model="form.txnDate" type="date" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-date" style="display:block; font-size:12px; margin-bottom:4px;">Date</label>
+        <input id="cash-txn-date" v-model="form.txnDate" type="date" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
       </div>
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Category</label>
-        <select v-model="form.category" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-category" style="display:block; font-size:12px; margin-bottom:4px;">Category</label>
+        <select id="cash-txn-category" v-model="form.category" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Direction</label>
-        <select v-model="form.direction" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-direction" style="display:block; font-size:12px; margin-bottom:4px;">Direction</label>
+        <select id="cash-txn-direction" v-model="form.direction" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
           <option value="receipt">Money In (Receipt)</option>
           <option value="payment">Money Out (Payment)</option>
         </select>
       </div>
       <div style="grid-column: span 2;">
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Particulars</label>
-        <input v-model="form.particulars" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-particulars" style="display:block; font-size:12px; margin-bottom:4px;">Particulars</label>
+        <input id="cash-txn-particulars" v-model="form.particulars" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
       </div>
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Amount (Rs)</label>
-        <input v-model.number="form.amount" type="number" min="0.01" step="0.01" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-amount" style="display:block; font-size:12px; margin-bottom:4px;">Amount (Rs)</label>
+        <input id="cash-txn-amount" v-model.number="form.amount" type="number" min="0.01" step="0.01" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
       </div>
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Payment Mode</label>
-        <select v-model="form.paymentMode" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-payment-mode" style="display:block; font-size:12px; margin-bottom:4px;">Payment Mode</label>
+        <select id="cash-txn-payment-mode" v-model="form.paymentMode" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
           <option>Cash</option>
           <option>UPI</option>
           <option>Bank Transfer</option>
@@ -126,12 +126,12 @@ const columns = [
         </select>
       </div>
       <div>
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Reference No (optional)</label>
-        <input v-model="form.referenceNo" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-reference-no" style="display:block; font-size:12px; margin-bottom:4px;">Reference No (optional)</label>
+        <input id="cash-txn-reference-no" v-model="form.referenceNo" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
       </div>
       <div style="grid-column: span 2;">
-        <label style="display:block; font-size:12px; margin-bottom:4px;">Remarks (optional)</label>
-        <input v-model="form.remarks" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        <label for="cash-txn-remarks" style="display:block; font-size:12px; margin-bottom:4px;">Remarks (optional)</label>
+        <input id="cash-txn-remarks" v-model="form.remarks" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
       </div>
       <div style="grid-column: span 3;">
         <div v-if="formError" style="color: var(--color-danger); font-size: 13px; margin-bottom: 8px;">{{ formError }}</div>

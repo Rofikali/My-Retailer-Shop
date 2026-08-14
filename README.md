@@ -16,8 +16,8 @@ Dashboard — each following the same pattern (repo → service, owning the DB t
   written and syntax-checked (`node --check` on every `.ts` file, plus every `.vue` file's script block)
   in a sandbox with no network access. Treat it as reviewed-but-unexecuted code, not verified code, until
   you've run `pnpm run test:all` yourself against a real database.
-- **E2E tests are written but not run or wired into CI** — see `tests/e2e/critical-flows.spec.ts` and the
-  note at the bottom of `.github/workflows/ci.yml`.
+- **E2E tests run in CI** — local browser installation may require network access; see
+  `tests/e2e/critical-flows.spec.ts` and `docs/12-Production-Readiness.md`.
 - **No approval workflow, no double-entry Journal/GL usage** — both are optional extension points, not
   gaps in the core system (see `docs/07-SDLC-Process.md` Phase 3 and the Journal/General Ledger page
   comments).
@@ -40,8 +40,7 @@ pnpm run db:generate
 pnpm run db:migrate
 
 # 5. Seed the chart of accounts + an owner user
-#    (uses SEED_OWNER_EMAIL / SEED_OWNER_PASSWORD env vars if set, otherwise
-#     owner@example.com / ChangeMe123! — change this password after first login)
+#    Set SEED_OWNER_EMAIL and a strong SEED_OWNER_PASSWORD in .env first.
 pnpm run db:seed
 
 # 6. Run the dev server
@@ -128,9 +127,8 @@ deliberately **not** run automatically on container start (see the comment in `D
 `pnpm run db:migrate` as an explicit CI/CD step before deploying a new image, per
 `docs/09-DevOps-Deployment.md`.
 
-`.github/workflows/ci.yml` runs on every PR: typecheck + unit tests always, integration tests against a
-real Postgres service container. E2E is intentionally not wired into CI yet (see the comment at the bottom
-of that file for why).
+`.github/workflows/ci.yml` runs typecheck, unit and integration tests, a production build, and Chromium E2E
+tests on every pull request. Configure the deployment platform to probe `/api/health`.
 
 ## Project layout
 

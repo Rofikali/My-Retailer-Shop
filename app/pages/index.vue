@@ -9,7 +9,13 @@ interface DashboardSummary {
   closingStockValue: number
 }
 
-const { data, pending, error, refresh } = await useFetch<DashboardSummary>('/api/reports/dashboard-summary')
+const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const { data, pending, error, refresh } = await useFetch<DashboardSummary>('/api/reports/dashboard-summary', {
+  headers,
+  server: false
+})
+
+onMounted(() => refresh())
 </script>
 
 <template>
@@ -22,13 +28,13 @@ const { data, pending, error, refresh } = await useFetch<DashboardSummary>('/api
       <button style="margin-left: 8px;" @click="refresh()">Retry</button>
     </div>
     <div v-else-if="data" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
-      <KpiCard label="Total Revenue" :value="data.totalRevenue" format="currency" />
-      <KpiCard label="Gross Profit" :value="data.grossProfit" format="currency" />
-      <KpiCard label="Net Profit" :value="data.netProfit" format="currency" />
-      <KpiCard label="Cash Balance" :value="data.cashBalance" format="currency" />
-      <KpiCard label="Sundry Debtors" :value="data.sundryDebtors" format="currency" />
-      <KpiCard label="Sundry Creditors" :value="data.sundryCreditors" format="currency" />
-      <KpiCard label="Closing Stock Value" :value="data.closingStockValue" format="currency" />
+      <UiKpiCard label="Total Revenue" :value="data.totalRevenue" format="currency" />
+      <UiKpiCard label="Gross Profit" :value="data.grossProfit" format="currency" />
+      <UiKpiCard label="Net Profit" :value="data.netProfit" format="currency" />
+      <UiKpiCard label="Cash Balance" :value="data.cashBalance" format="currency" />
+      <UiKpiCard label="Sundry Debtors" :value="data.sundryDebtors" format="currency" />
+      <UiKpiCard label="Sundry Creditors" :value="data.sundryCreditors" format="currency" />
+      <UiKpiCard label="Closing Stock Value" :value="data.closingStockValue" format="currency" />
     </div>
 
     <p style="margin-top: 24px; font-size: 12px; color: var(--color-text-muted);">
