@@ -1,6 +1,6 @@
 import { eq, desc } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { sales, saleItems, customers } from '../db/schema'
+import { sales, saleItems, customers, products, users } from '../db/schema'
 
 export class SalesRepo {
   constructor(private db: Database) {}
@@ -11,13 +11,25 @@ export class SalesRepo {
         id: sales.id,
         invoiceNo: sales.invoiceNo,
         saleDate: sales.saleDate,
+        productName: products.name,
+        category: products.category,
+        quantity: saleItems.quantity,
+        costPrice: saleItems.costPrice,
+        unitPrice: saleItems.sellingPrice,
+        discount: saleItems.discount,
         paymentMode: sales.paymentMode,
         status: sales.status,
         customerName: customers.name,
+        salespersonName: users.name,
+        referenceNo: sales.referenceNo,
+        remarks: sales.remarks,
         createdAt: sales.createdAt
       })
       .from(sales)
+      .innerJoin(saleItems, eq(saleItems.saleId, sales.id))
+      .innerJoin(products, eq(saleItems.productId, products.id))
       .leftJoin(customers, eq(sales.customerId, customers.id))
+      .leftJoin(users, eq(sales.createdBy, users.id))
       .orderBy(desc(sales.saleDate), desc(sales.createdAt))
   }
 
@@ -30,10 +42,14 @@ export class SalesRepo {
         paymentMode: sales.paymentMode,
         status: sales.status,
         customerId: sales.customerId,
-        customerName: customers.name
+        customerName: customers.name,
+        salespersonName: users.name,
+        referenceNo: sales.referenceNo,
+        remarks: sales.remarks
       })
       .from(sales)
       .leftJoin(customers, eq(sales.customerId, customers.id))
+      .leftJoin(users, eq(sales.createdBy, users.id))
       .where(eq(sales.id, id))
     if (!sale) return null
 

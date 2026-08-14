@@ -32,7 +32,7 @@ export class SalesService {
   }
 
   async recordSale(input: SaleInputType, userId: string) {
-    const totalSale = input.items.reduce((sum, i) => sum + i.quantity * i.sellingPrice, 0)
+    const totalSale = input.items.reduce((sum, item) => sum + item.quantity * item.sellingPrice - (item.discount ?? 0), 0)
     const totalCost = input.items.reduce((sum, i) => sum + i.quantity * i.costPrice, 0)
     const status = input.paymentMode === 'credit' ? 'pending' : 'paid'
     const invoiceNo = await this.repo.nextInvoiceNo()
@@ -47,6 +47,8 @@ export class SalesService {
         customerId: input.customerId,
         paymentMode: input.paymentMode,
         status,
+        referenceNo: input.referenceNo || null,
+        remarks: input.remarks || null,
         createdBy: userId
       })
 
@@ -59,7 +61,8 @@ export class SalesService {
           productId: item.productId,
           quantity: String(item.quantity),
           costPrice: String(item.costPrice),
-          sellingPrice: String(item.sellingPrice)
+          sellingPrice: String(item.sellingPrice),
+          discount: String(item.discount ?? 0)
         }))
       )
 

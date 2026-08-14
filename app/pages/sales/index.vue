@@ -3,9 +3,18 @@ interface Sale {
   id: string
   invoiceNo: string
   saleDate: string
+  productName: string
+  category: string | null
+  quantity: string
+  costPrice: string
+  unitPrice: string
+  discount: string
   paymentMode: string
   status: string
   customerName: string | null
+  salespersonName: string | null
+  referenceNo: string | null
+  remarks: string | null
 }
 interface Product {
   id: string
@@ -24,6 +33,7 @@ interface SaleLine {
   quantity: number
   costPrice: number
   sellingPrice: number
+  discount: number
 }
 
 const { data: saleList, refresh } = await useFetch<Sale[]>('/api/sales')
@@ -37,10 +47,12 @@ const formError = ref('')
 const saleDate = ref(new Date().toISOString().slice(0, 10))
 const paymentMode = ref<'cash' | 'upi' | 'credit'>('cash')
 const customerId = ref('')
-const lines = ref<SaleLine[]>([{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0 }])
+const referenceNo = ref('')
+const remarks = ref('')
+const lines = ref<SaleLine[]>([{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, discount: 0 }])
 
 function addLine() {
-  lines.value.push({ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0 })
+  lines.value.push({ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, discount: 0 })
 }
 function removeLine(i: number) {
   lines.value.splice(i, 1)
@@ -53,9 +65,13 @@ function onProductChange(line: SaleLine) {
   }
 }
 
-const totalSale = computed(() => lines.value.reduce((s, l) => s + l.quantity * l.sellingPrice, 0))
+const grossAmount = computed(() => lines.value.reduce((sum, line) => sum + line.quantity * line.sellingPrice, 0))
+const totalDiscount = computed(() => lines.value.reduce((sum, line) => sum + line.discount, 0))
+const totalSale = computed(() => grossAmount.value - totalDiscount.value)
 const totalCost = computed(() => lines.value.reduce((s, l) => s + l.quantity * l.costPrice, 0))
 const grossProfit = computed(() => totalSale.value - totalCost.value)
+const lineNet = (line: SaleLine) => line.quantity * line.sellingPrice - line.discount
+const lineProfit = (sale: Sale) => Number(sale.quantity) * Number(sale.unitPrice) - Number(sale.discount) - Number(sale.quantity) * Number(sale.costPrice)
 
 function fmt(v: number | string) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
@@ -71,17 +87,22 @@ async function submit() {
         saleDate: saleDate.value,
         customerId: customerId.value || undefined,
         paymentMode: paymentMode.value,
+        referenceNo: referenceNo.value || undefined,
+        remarks: remarks.value || undefined,
         items: lines.value.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
           costPrice: l.costPrice,
-          sellingPrice: l.sellingPrice
+          sellingPrice: l.sellingPrice,
+          discount: l.discount
         }))
       }
     })
     showForm.value = false
-    lines.value = [{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0 }]
+    lines.value = [{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, discount: 0 }]
     customerId.value = ''
+    referenceNo.value = ''
+    remarks.value = ''
     await refresh()
   } catch (e: any) {
     formError.value =
@@ -98,7 +119,7 @@ async function submit() {
 <template>
   <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h1 style="font-size: 20px; margin: 0;">Sales</h1>
+      <h1 style="font-size: 20px; margin: 0;">Sales Registry</h1>
       <button style="padding: 8px 14px; background: var(--color-accent); color: white; border: none; border-radius: 6px; cursor: pointer;" @click="showForm = !showForm">
         {{ showForm ? 'Cancel' : '+ New Sale' }}
       </button>
@@ -124,6 +145,14 @@ async function submit() {
           </select>
         </div>
         <div>
+          <label for="sale-reference" style="display:block; font-size:12px; margin-bottom:4px;">Reference</label>
+          <input id="sale-reference" v-model="referenceNo" maxlength="100" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        </div>
+        <div>
+          <label for="sale-remarks" style="display:block; font-size:12px; margin-bottom:4px;">Remarks</label>
+          <input id="sale-remarks" v-model="remarks" maxlength="1000" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        </div>
+        <div>
           <label style="display:block; font-size:12px; margin-bottom:4px;">
             Customer {{ paymentMode === 'credit' ? '(required)' : '(optional — walk-in if blank)' }}
           </label>
@@ -141,7 +170,8 @@ async function submit() {
             <th style="padding: 4px; width: 80px;">Qty</th>
             <th style="padding: 4px; width: 110px;">Cost Price</th>
             <th style="padding: 4px; width: 110px;">Selling Price</th>
-            <th style="padding: 4px; width: 100px; text-align: right;">Line Total</th>
+            <th style="padding: 4px; width: 110px;">Discount</th>
+            <th style="padding: 4px; width: 100px; text-align: right;">Net Amount</th>
             <th style="width: 30px;"></th>
           </tr>
         </thead>
@@ -156,7 +186,8 @@ async function submit() {
             <td style="padding: 4px;"><input v-model.number="line.quantity" type="number" min="0.01" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
             <td style="padding: 4px;"><input v-model.number="line.costPrice" type="number" min="0" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
             <td style="padding: 4px;"><input v-model.number="line.sellingPrice" type="number" min="0" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
-            <td style="padding: 4px; text-align: right;" class="kpi-value">{{ fmt(line.quantity * line.sellingPrice) }}</td>
+            <td style="padding: 4px;"><input v-model.number="line.discount" type="number" min="0" :max="line.quantity * line.sellingPrice" step="0.01" required style="width:100%; padding:6px; border:1px solid var(--color-border); border-radius:6px;"></td>
+            <td style="padding: 4px; text-align: right;" class="kpi-value">{{ fmt(lineNet(line)) }}</td>
             <td style="padding: 4px;">
               <button type="button" :disabled="lines.length === 1" style="background:none; border:none; color: var(--color-danger); cursor:pointer;" @click="removeLine(i)">✕</button>
             </td>
@@ -169,7 +200,9 @@ async function submit() {
       </button>
 
       <div class="card" style="max-width: 320px; margin-bottom: 16px; background: var(--color-accent-soft); border: none;">
-        <div style="display:flex; justify-content:space-between;"><span>Total Sale</span><span class="kpi-value">{{ fmt(totalSale) }}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Gross Amount</span><span class="kpi-value">{{ fmt(grossAmount) }}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Discount</span><span class="kpi-value">{{ fmt(totalDiscount) }}</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>Net Amount</span><span class="kpi-value">{{ fmt(totalSale) }}</span></div>
         <div style="display:flex; justify-content:space-between;"><span>Total Cost</span><span class="kpi-value">{{ fmt(totalCost) }}</span></div>
         <div style="display:flex; justify-content:space-between; font-weight:700;"><span>Gross Profit</span><span class="kpi-value">{{ fmt(grossProfit) }}</span></div>
       </div>
@@ -180,11 +213,15 @@ async function submit() {
       </button>
     </form>
 
-    <table style="width: 100%; border-collapse: collapse;">
+    <div style="overflow-x: auto;">
+    <table style="width: 100%; min-width: 1700px; border-collapse: collapse;">
       <thead>
         <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
-          <th style="padding: 8px;">Date</th><th style="padding: 8px;">Invoice</th>
-          <th style="padding: 8px;">Customer</th><th style="padding: 8px;">Payment Mode</th><th style="padding: 8px;">Status</th>
+          <th style="padding: 8px;">Date</th><th style="padding: 8px;">Invoice No</th><th style="padding: 8px;">Customer</th>
+          <th style="padding: 8px;">Product</th><th style="padding: 8px;">Category</th><th style="padding: 8px;">Qty</th>
+          <th style="padding: 8px;">Cost Price (Rs)</th><th style="padding: 8px;">Unit Price (Rs)</th><th style="padding: 8px;">Discount (Rs)</th>
+          <th style="padding: 8px;">Net Amount (Rs)</th><th style="padding: 8px;">Payment Mode</th><th style="padding: 8px;">Status</th>
+          <th style="padding: 8px;">Salesperson</th><th style="padding: 8px;">Reference</th><th style="padding: 8px;">Remarks</th><th style="padding: 8px;">Profit (Rs)</th>
         </tr>
       </thead>
       <tbody>
@@ -192,10 +229,22 @@ async function submit() {
           <td style="padding: 8px;">{{ s.saleDate }}</td>
           <td style="padding: 8px;">{{ s.invoiceNo }}</td>
           <td style="padding: 8px;">{{ s.customerName || 'Walk-in' }}</td>
+          <td style="padding: 8px;">{{ s.productName }}</td>
+          <td style="padding: 8px;">{{ s.category || 'Uncategorized' }}</td>
+          <td style="padding: 8px;">{{ s.quantity }}</td>
+          <td style="padding: 8px;">{{ fmt(s.costPrice) }}</td>
+          <td style="padding: 8px;">{{ fmt(s.unitPrice) }}</td>
+          <td style="padding: 8px;">{{ fmt(s.discount) }}</td>
+          <td style="padding: 8px;">{{ fmt(Number(s.quantity) * Number(s.unitPrice) - Number(s.discount)) }}</td>
           <td style="padding: 8px;">{{ s.paymentMode }}</td>
           <td style="padding: 8px;">{{ s.status }}</td>
+          <td style="padding: 8px;">{{ s.salespersonName || 'Unknown' }}</td>
+          <td style="padding: 8px;">{{ s.referenceNo || '—' }}</td>
+          <td style="padding: 8px;">{{ s.remarks || '—' }}</td>
+          <td style="padding: 8px;">{{ fmt(lineProfit(s)) }}</td>
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>

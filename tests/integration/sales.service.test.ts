@@ -80,6 +80,24 @@ describe('SalesService.recordSale', () => {
     // change" class of bug.)
   })
 
+  it('persists discounts and posts only the net sale value to the ledger', async () => {
+    const result = await salesService.recordSale(
+      { saleDate: '2026-08-01', paymentMode: 'cash', items: [{ productId, quantity: 2, costPrice: 10, sellingPrice: 15, discount: 5 }] },
+      userId
+    )
+
+    expect(result.totalSale).toBe(25)
+    expect(result.totalCost).toBe(20)
+    expect(result.grossProfit).toBe(5)
+
+    const [item] = await testDb.select().from(saleItems).where(eq(saleItems.saleId, result.id))
+    expect(Number(item.discount)).toBe(5)
+
+    const entries = await testDb.select().from(ledgerEntries)
+    expect(entries.some((entry) => Number(entry.debit) === 25)).toBe(true)
+    expect(entries.some((entry) => Number(entry.credit) === 25)).toBe(true)
+  })
+
   it('rolls back everything if a line item references a non-existent product', async () => {
     const fakeProductId = '00000000-0000-0000-0000-000000000000'
 

@@ -8,6 +8,13 @@
       "when": 1786288166034,
       "tag": "0000_fluffy_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786720243665,
+      "tag": "0001_round_eternals",
+      "breakpoints": true
     }
   ]
 }

@@ -133,6 +133,8 @@ export const sales = pgTable('sales', {
   customerId: uuid('customer_id').references(() => customers.id), // null = walk-in
   paymentMode: paymentModeEnum('payment_mode').notNull(),
   status: saleStatusEnum('status').notNull(),
+  referenceNo: text('reference_no'),
+  remarks: text('remarks'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
@@ -143,7 +145,8 @@ export const saleItems = pgTable('sale_items', {
   productId: uuid('product_id').notNull().references(() => products.id),
   quantity: numeric('quantity', { precision: 10, scale: 2 }).notNull(),
   costPrice: numeric('cost_price', { precision: 12, scale: 2 }).notNull(),      // snapshot
-  sellingPrice: numeric('selling_price', { precision: 12, scale: 2 }).notNull() // snapshot
+  sellingPrice: numeric('selling_price', { precision: 12, scale: 2 }).notNull(), // snapshot
+  discount: numeric('discount', { precision: 12, scale: 2 }).notNull().default('0') // line-level discount snapshot
 })
 
 // ---------------------------------------------------------------------------
