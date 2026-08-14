@@ -88,7 +88,7 @@ export class PurchasesService {
       await this.inventory.receive(
         dbTx,
         input.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        { movementDate: input.purchaseDate, referenceType: 'purchase', referenceId: purchase.id, createdBy: userId }
+        { movementDate: input.purchaseDate, referenceType: 'purchase', referenceId: purchase.id, createdBy: userId, warehouse: input.warehouse, remarks: input.remarks }
       )
 
       return { ...purchase, totalAmount }

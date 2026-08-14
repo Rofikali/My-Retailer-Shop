@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
 import { suppliers, products, purchases, purchaseItems, ledgerEntries, inventoryMovements } from '../../server/db/schema'
 import { PurchasesService } from '../../server/services/purchases.service'
+import { InventoryService } from '../../server/services/inventory.service'
 
 describe('PurchasesService.recordPurchase', () => {
   let userId: string
@@ -64,6 +65,17 @@ describe('PurchasesService.recordPurchase', () => {
     const movements = await testDb.select().from(inventoryMovements).where(eq(inventoryMovements.productId, productId))
     expect(movements).toHaveLength(1)
     expect(Number(movements[0].quantity)).toBe(25) // positive - stock IN
+  })
+
+  it('reports warehouse stock, supplier, and stock-in totals in the inventory registry', async () => {
+    await purchasesService.recordPurchase(
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', warehouse: 'Backroom', remarks: 'Received and checked', items: [{ productId, quantity: 25, unitCost: 20 }] },
+      userId
+    )
+
+    const inventory = await new InventoryService(testDb).listWithStock()
+    const row = inventory.find((item) => item.id === productId && item.warehouse === 'Backroom')
+    expect(row).toMatchObject({ supplierName: 'Dadu Wholesale', stockIn: 25, currentStock: 25, remarks: 'Received and checked' })
   })
 
   it('persists discounts and posts only the net purchase amount to the ledger', async () => {

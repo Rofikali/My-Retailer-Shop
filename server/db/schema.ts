@@ -117,6 +117,8 @@ export const inventoryMovements = pgTable('inventory_movements', {
   movementDate: date('movement_date').notNull(),
   type: movementTypeEnum('type').notNull(),
   quantity: numeric('quantity', { precision: 10, scale: 2 }).notNull(), // + in, - out
+  warehouse: text('warehouse').notNull().default('Main'),
+  remarks: text('remarks'),
   referenceType: text('reference_type'),
   referenceId: uuid('reference_id'),
   createdBy: uuid('created_by').references(() => users.id),

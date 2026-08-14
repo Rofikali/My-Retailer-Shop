@@ -22,6 +22,13 @@
       "when": 1786720887538,
       "tag": "0002_even_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786721488015,
+      "tag": "0003_careless_hellfire_club",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,10 @@ export class InventoryService {
       const costPrice = Number(r.costPrice ?? 0)
       return {
         ...r,
+        openingStock: Number(r.openingStock),
+        stockIn: Number(r.stockIn),
+        stockOut: Number(r.stockOut),
+        damaged: Number(r.damaged),
         currentStock,
         stockValue: currentStock * costPrice,
         status: currentStock <= reorderLevel ? 'Reorder' : 'In Stock'
@@ -47,7 +51,7 @@ export class InventoryService {
     return this.repo.getMovements(productId)
   }
 
-  async deduct(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string }) {
+  async deduct(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
@@ -55,6 +59,8 @@ export class InventoryService {
         movementDate: opts.movementDate,
         type: 'sale' as const,
         quantity: String(-Math.abs(l.quantity)), // sales always reduce stock
+        warehouse: opts.warehouse ?? 'Main',
+        remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
         createdBy: opts.createdBy
@@ -62,7 +68,7 @@ export class InventoryService {
     ).returning()
   }
 
-  async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string }) {
+  async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
@@ -70,6 +76,8 @@ export class InventoryService {
         movementDate: opts.movementDate,
         type: 'purchase' as const,
         quantity: String(Math.abs(l.quantity)), // purchases always increase stock
+        warehouse: opts.warehouse ?? 'Main',
+        remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
         createdBy: opts.createdBy
@@ -122,6 +130,8 @@ export class InventoryService {
         movementDate: input.adjustmentDate,
         type: movementType,
         quantity: String(movementQuantity),
+        warehouse: input.warehouse,
+        remarks: input.remarks || null,
         referenceType: 'manual',
         createdBy: userId
       })
