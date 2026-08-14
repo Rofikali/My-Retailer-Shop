@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
-import { suppliers, products, purchases, ledgerEntries, inventoryMovements } from '../../server/db/schema'
+import { suppliers, products, purchases, purchaseItems, ledgerEntries, inventoryMovements } from '../../server/db/schema'
 import { PurchasesService } from '../../server/services/purchases.service'
 
 describe('PurchasesService.recordPurchase', () => {
@@ -64,6 +64,21 @@ describe('PurchasesService.recordPurchase', () => {
     const movements = await testDb.select().from(inventoryMovements).where(eq(inventoryMovements.productId, productId))
     expect(movements).toHaveLength(1)
     expect(Number(movements[0].quantity)).toBe(25) // positive - stock IN
+  })
+
+  it('persists discounts and posts only the net purchase amount to the ledger', async () => {
+    const result = await purchasesService.recordPurchase(
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', warehouse: 'Main', items: [{ productId, quantity: 10, unitCost: 20, discount: 25 }] },
+      userId
+    )
+
+    expect(result.totalAmount).toBe(175)
+    const [item] = await testDb.select().from(purchaseItems).where(eq(purchaseItems.purchaseId, result.id))
+    expect(Number(item.discount)).toBe(25)
+
+    const entries = await testDb.select().from(ledgerEntries)
+    expect(entries.some((entry) => Number(entry.debit) === 175)).toBe(true)
+    expect(entries.some((entry) => Number(entry.credit) === 175)).toBe(true)
   })
 
   it('two purchases from the same supplier accumulate correctly on their ledger (regression test for the exact bug found in the original Excel Supplier Ledger)', async () => {

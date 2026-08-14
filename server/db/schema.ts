@@ -159,6 +159,9 @@ export const purchases = pgTable('purchases', {
   supplierId: uuid('supplier_id').references(() => suppliers.id),
   paymentMode: paymentModeEnum('payment_mode').notNull(),
   status: saleStatusEnum('status').notNull(),
+  warehouse: text('warehouse').notNull().default('Main'),
+  referenceNo: text('reference_no'),
+  remarks: text('remarks'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
@@ -168,7 +171,8 @@ export const purchaseItems = pgTable('purchase_items', {
   purchaseId: uuid('purchase_id').notNull().references(() => purchases.id, { onDelete: 'cascade' }),
   productId: uuid('product_id').notNull().references(() => products.id),
   quantity: numeric('quantity', { precision: 10, scale: 2 }).notNull(),
-  unitCost: numeric('unit_cost', { precision: 12, scale: 2 }).notNull()
+  unitCost: numeric('unit_cost', { precision: 12, scale: 2 }).notNull(),
+  discount: numeric('discount', { precision: 12, scale: 2 }).notNull().default('0')
 })
 
 // ---------------------------------------------------------------------------

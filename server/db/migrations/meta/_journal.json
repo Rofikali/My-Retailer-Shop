@@ -15,6 +15,13 @@
       "when": 1786720243665,
       "tag": "0001_round_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786720887538,
+      "tag": "0002_even_khan",
+      "breakpoints": true
     }
   ]
 }

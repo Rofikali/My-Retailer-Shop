@@ -1,6 +1,6 @@
-import { eq, desc } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { purchases, purchaseItems, suppliers } from '../db/schema'
+import { inventoryMovements, products, purchaseItems, purchases, suppliers } from '../db/schema'
 
 export class PurchasesRepo {
   constructor(private db: Database) {}
@@ -11,13 +11,29 @@ export class PurchasesRepo {
         id: purchases.id,
         purchaseNo: purchases.purchaseNo,
         purchaseDate: purchases.purchaseDate,
+        productName: products.name,
+        category: products.category,
+        quantity: purchaseItems.quantity,
+        unitCost: purchaseItems.unitCost,
+        discount: purchaseItems.discount,
         paymentMode: purchases.paymentMode,
         status: purchases.status,
         supplierName: suppliers.name,
+        warehouse: purchases.warehouse,
+        referenceNo: purchases.referenceNo,
+        remarks: purchases.remarks,
+        stockUpdated: sql<boolean>`${inventoryMovements.id} IS NOT NULL`,
         createdAt: purchases.createdAt
       })
       .from(purchases)
+      .innerJoin(purchaseItems, eq(purchaseItems.purchaseId, purchases.id))
+      .innerJoin(products, eq(purchaseItems.productId, products.id))
       .leftJoin(suppliers, eq(purchases.supplierId, suppliers.id))
+      .leftJoin(inventoryMovements, and(
+        eq(inventoryMovements.referenceId, purchases.id),
+        eq(inventoryMovements.productId, purchaseItems.productId),
+        eq(inventoryMovements.type, 'purchase')
+      ))
       .orderBy(desc(purchases.purchaseDate), desc(purchases.createdAt))
   }
 
@@ -30,7 +46,10 @@ export class PurchasesRepo {
         paymentMode: purchases.paymentMode,
         status: purchases.status,
         supplierId: purchases.supplierId,
-        supplierName: suppliers.name
+        supplierName: suppliers.name,
+        warehouse: purchases.warehouse,
+        referenceNo: purchases.referenceNo,
+        remarks: purchases.remarks
       })
       .from(purchases)
       .leftJoin(suppliers, eq(purchases.supplierId, suppliers.id))

@@ -35,7 +35,7 @@ export class PurchasesService {
   }
 
   async recordPurchase(input: PurchaseInputType, userId: string) {
-    const totalAmount = input.items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0)
+    const totalAmount = input.items.reduce((sum, item) => sum + item.quantity * item.unitCost - (item.discount ?? 0), 0)
     const status = input.paymentMode === 'credit' ? 'pending' : 'paid'
     const purchaseNo = await this.repo.nextPurchaseNo()
 
@@ -48,6 +48,9 @@ export class PurchasesService {
         supplierId: input.supplierId,
         paymentMode: input.paymentMode,
         status,
+        warehouse: input.warehouse,
+        referenceNo: input.referenceNo || null,
+        remarks: input.remarks || null,
         createdBy: userId
       })
 
@@ -57,7 +60,8 @@ export class PurchasesService {
           purchaseId: purchase.id,
           productId: item.productId,
           quantity: String(item.quantity),
-          unitCost: String(item.unitCost)
+          unitCost: String(item.unitCost),
+          discount: String(item.discount ?? 0)
         }))
       )
 
