@@ -4,6 +4,17 @@ import type { H3Event } from 'h3'
 const COOKIE_NAME = 'session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 days
 
+function getSessionSecret(): string {
+  const secret = useRuntimeConfig().sessionSecret as string | undefined
+  const isPlaceholder = !secret || secret.includes('replace-with') || secret.includes('change-this')
+
+  if (isPlaceholder || secret.length < 32) {
+    throw new Error('SESSION_SECRET must be a unique random value of at least 32 characters.')
+  }
+
+  return secret
+}
+
 function sign(value: string, secret: string): string {
   const sig = createHmac('sha256', secret).update(value).digest('hex')
   return `${value}.${sig}`
@@ -23,8 +34,7 @@ function verify(signed: string, secret: string): string | null {
 }
 
 export function setSessionCookie(event: H3Event, userId: string) {
-  const secret = useRuntimeConfig().sessionSecret as string
-  const token = sign(userId, secret)
+  const token = sign(userId, getSessionSecret())
   setCookie(event, COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -41,6 +51,5 @@ export function clearSessionCookie(event: H3Event) {
 export function getSessionUserId(event: H3Event): string | null {
   const token = getCookie(event, COOKIE_NAME)
   if (!token) return null
-  const secret = useRuntimeConfig().sessionSecret as string
-  return verify(token, secret)
+  return verify(token, getSessionSecret())
 }

@@ -69,4 +69,18 @@ test.describe('Critical flows', () => {
       await expect(page.locator('body')).not.toContainText('This page could not be found')
     }
   })
+
+  test('the navigation can collapse and expand without losing links', async ({ page }) => {
+    await page.goto('/login')
+    await page.getByLabel('Email').fill(OWNER_EMAIL)
+    await page.getByLabel('Password').fill(OWNER_PASSWORD)
+    await page.getByRole('button', { name: /sign in/i }).click()
+
+    await page.getByRole('button', { name: 'Collapse navigation' }).click()
+    await expect(page.locator('.sidebar')).toHaveClass(/sidebar--collapsed/)
+    await expect(page.locator('.sidebar__nav').getByText('Dashboard', { exact: true })).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Expand navigation' }).click()
+    await expect(page.locator('.sidebar__nav').getByText('Dashboard', { exact: true })).toBeVisible()
+  })
 })

@@ -38,9 +38,16 @@ async function main() {
   })
 
   const ownerEmail = process.env.SEED_OWNER_EMAIL || 'owner@example.com'
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD || 'ChangeMe123!'
-  console.log(`Seeding owner user (${ownerEmail}) - CHANGE THIS PASSWORD after first login...`)
-  const passwordHash = await argon2.hash(ownerPassword)
+  const ownerPassword = process.env.SEED_OWNER_PASSWORD
+  if (process.env.NODE_ENV === 'production' && !ownerPassword) {
+    throw new Error('SEED_OWNER_PASSWORD must be set when seeding a production database.')
+  }
+  const password = ownerPassword || 'ChangeMe123!'
+  if (process.env.NODE_ENV === 'production' && password.length < 12) {
+    throw new Error('SEED_OWNER_PASSWORD must be at least 12 characters in production.')
+  }
+  console.log(`Seeding owner user (${ownerEmail}).`)
+  const passwordHash = await argon2.hash(password)
   await db.insert(users).values({
     name: '[Owner Name]',
     email: ownerEmail,
