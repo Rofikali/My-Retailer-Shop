@@ -19,6 +19,7 @@ const navItems = [
   { to: '/inventory', label: 'Inventory' },
   { to: '/expenses', label: 'Expenses' },
   { to: '/customers', label: 'Customers' },
+  { to: '/customer-ledger', label: 'Customer Ledger' },
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/supplier-ledger', label: 'Supplier Ledger' },
   { to: '/party-ledger', label: 'Receipts & Payments' },
