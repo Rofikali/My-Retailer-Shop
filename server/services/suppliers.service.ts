@@ -2,7 +2,7 @@ import { db, type Database } from '../db/client'
 import { SuppliersRepo } from '../repositories/suppliers.repo'
 import { LedgerService } from './ledger.service'
 import { PartyLedgerService } from './party-ledger.service'
-import type { SupplierInputType } from '../utils/validation/supplier'
+import type { SupplierInputType, SupplierUpdateInputType } from '../utils/validation/supplier'
 
 export class SuppliersService {
   private repo: SuppliersRepo
@@ -51,6 +51,15 @@ export class SuppliersService {
     const balance = await this.repo.getOutstandingBalance(id)
     const ledger = await this.repo.getLedger(id)
     return { ...supplier, outstandingBalance: balance, ledger }
+  }
+
+  async update(id: string, input: SupplierUpdateInputType) {
+    return this.repo.update(id, {
+      ...input,
+      creditTermsDays: input.creditTermsDays === undefined ? undefined : String(input.creditTermsDays),
+      creditLimit: input.creditLimit === undefined ? undefined : String(input.creditLimit),
+      rating: input.rating === undefined ? undefined : String(input.rating)
+    })
   }
 }
 

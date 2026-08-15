@@ -21,3 +21,6 @@ export const SupplierInput = z.object({
 })
 
 export type SupplierInputType = z.infer<typeof SupplierInput>
+
+export const SupplierUpdateInput = SupplierInput.omit({ openingBalance: true }).partial()
+export type SupplierUpdateInputType = z.infer<typeof SupplierUpdateInput>

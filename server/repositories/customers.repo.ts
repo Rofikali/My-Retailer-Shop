@@ -48,6 +48,11 @@ export class CustomersRepo {
     return row
   }
 
+  async update(id: string, values: Partial<typeof customers.$inferInsert>) {
+    const [row] = await this.db.update(customers).set(values).where(eq(customers.id, id)).returning()
+    return row ?? null
+  }
+
   async nextCode(): Promise<string> {
     const [row] = await this.db.select().from(customers).orderBy(desc(customers.createdAt)).limit(1)
     const lastNum = row ? parseInt(row.code.replace(/\D/g, ''), 10) || 0 : 0

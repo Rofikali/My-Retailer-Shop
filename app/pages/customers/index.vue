@@ -4,23 +4,39 @@ const { data: customersList, refresh } = await useFetch<Customer[]>('/api/custom
 const showForm = ref(false)
 const submitting = ref(false)
 const formError = ref('')
+const editingId = ref<string | null>(null)
 const form = reactive({ name: '', company: '', phone: '', email: '', gstin: '', address: '', city: '', state: '', pinCode: '', openingBalance: 0, creditLimit: 0, status: 'active' as 'active' | 'inactive', remarks: '' })
 function fmt(value: string | number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value)) }
 function dateOnly(value: string) { return value.slice(0, 10) }
 async function submit() {
   formError.value = ''; submitting.value = true
   try {
-    await $fetch('/api/customers', { method: 'POST', body: { ...form, company: form.company || undefined, phone: form.phone || undefined, email: form.email || undefined, gstin: form.gstin || undefined, address: form.address || undefined, city: form.city || undefined, state: form.state || undefined, pinCode: form.pinCode || undefined, creditLimit: form.creditLimit || undefined, remarks: form.remarks || undefined } })
+    const body = { ...form, company: form.company || undefined, phone: form.phone || undefined, email: form.email || undefined, gstin: form.gstin || undefined, address: form.address || undefined, city: form.city || undefined, state: form.state || undefined, pinCode: form.pinCode || undefined, creditLimit: form.creditLimit || undefined, remarks: form.remarks || undefined }
+    if (editingId.value) await $fetch(`/api/customers/${editingId.value}`, { method: 'PATCH', body })
+    else await $fetch('/api/customers', { method: 'POST', body })
     showForm.value = false
+    editingId.value = null
     Object.assign(form, { name: '', company: '', phone: '', email: '', gstin: '', address: '', city: '', state: '', pinCode: '', openingBalance: 0, creditLimit: 0, status: 'active', remarks: '' })
     await refresh()
   } catch (error: any) { formError.value = error?.data?.data?.formErrors?.[0] || error?.data?.statusMessage || 'Could not save customer' }
   finally { submitting.value = false }
 }
+function startEdit(customer: Customer) {
+  editingId.value = customer.id
+  Object.assign(form, { name: customer.name, company: customer.company || '', phone: customer.phone || '', email: customer.email || '', gstin: customer.gstin || '', address: customer.address || '', city: customer.city || '', state: customer.state || '', pinCode: customer.pinCode || '', openingBalance: Number(customer.openingBalance), creditLimit: Number(customer.creditLimit || 0), status: customer.status, remarks: customer.remarks || '' })
+  showForm.value = true
+}
 </script>
 
 <template>
   <div>
+    <div v-if="customersList?.length" class="card" style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
+      <label for="customer-edit-select" style="font-size:12px;">Edit Master</label>
+      <select id="customer-edit-select" @change="startEdit(customersList.find((customer) => customer.id === ($event.target as HTMLSelectElement).value)!)">
+        <option value="">Select customer by name — ID</option>
+        <option v-for="customer in customersList" :key="customer.id" :value="customer.id">{{ customer.name }} — {{ customer.code }}</option>
+      </select>
+    </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h1 style="font-size:20px; margin:0;">Customer Master</h1><button style="padding:8px 14px; background:var(--color-accent); color:white; border:none; border-radius:6px; cursor:pointer;" @click="showForm = !showForm">{{ showForm ? 'Cancel' : '+ New Customer' }}</button></div>
     <form v-if="showForm" class="card" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;" @submit.prevent="submit">
       <div><label for="customer-name" style="display:block; font-size:12px; margin-bottom:4px;">Customer Name</label><input id="customer-name" v-model="form.name" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div><div><label for="customer-company" style="display:block; font-size:12px; margin-bottom:4px;">Company</label><input id="customer-company" v-model="form.company" maxlength="150" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div><div><label for="customer-mobile" style="display:block; font-size:12px; margin-bottom:4px;">Mobile</label><input id="customer-mobile" v-model="form.phone" maxlength="20" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>

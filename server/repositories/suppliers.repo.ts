@@ -35,6 +35,11 @@ export class SuppliersRepo {
     return row
   }
 
+  async update(id: string, values: Partial<typeof suppliers.$inferInsert>) {
+    const [row] = await this.db.update(suppliers).set(values).where(eq(suppliers.id, id)).returning()
+    return row ?? null
+  }
+
   async nextCode(): Promise<string> {
     const [row] = await this.db.select().from(suppliers).orderBy(desc(suppliers.createdAt)).limit(1)
     const lastNum = row ? parseInt(row.code.replace(/\D/g, ''), 10) || 0 : 0

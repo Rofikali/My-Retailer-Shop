@@ -17,3 +17,6 @@ export const CustomerInput = z.object({
 })
 
 export type CustomerInputType = z.infer<typeof CustomerInput>
+
+export const CustomerUpdateInput = CustomerInput.omit({ openingBalance: true }).partial()
+export type CustomerUpdateInputType = z.infer<typeof CustomerUpdateInput>
