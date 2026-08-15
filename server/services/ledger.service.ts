@@ -1,5 +1,6 @@
 import type { Database } from '../db/client'
 import { LedgerRepo, type PostLine, type PostOptions } from '../repositories/ledger.repo'
+import { randomUUID } from 'node:crypto'
 
 /**
  * LedgerService is the ONLY code path in the entire application allowed to write to
@@ -40,11 +41,24 @@ export class LedgerService {
 
   /** Reverse a previously posted set of entries by inserting the mirror-image lines.
    *  Never call UPDATE/DELETE against ledger_entries directly - always reverse. */
-  async reverse(tx: Database, originalReferenceId: string, opts: Omit<PostOptions, 'referenceId'>) {
-    // In a full implementation: look up the original lines by referenceId, insert
-    // debit/credit-swapped copies with reversesEntryId set. Left as an extension point -
-    // not needed until you have your first real correction to make.
-    throw new Error('Not yet implemented - see server/services/ledger.service.ts')
+  async reverse(tx: Database, originalReferenceId: string, opts: Omit<PostOptions, 'referenceId' | 'referenceType'>) {
+    const originalEntries = await this.repo.getEntriesForReference(tx, originalReferenceId)
+    if (originalEntries.length === 0) throw new Error('No ledger entries found for this reference.')
+    if (await this.repo.hasReversalForReference(tx, originalReferenceId)) throw new Error('This posting has already been reversed.')
+    if (!originalEntries.every((entry) => entry.referenceType === 'opening_balance')) {
+      throw new Error('Operational documents require their domain-specific reversal workflow; direct ledger reversal is blocked.')
+    }
+
+    const reversalReferenceId = randomUUID()
+    const lines: PostLine[] = originalEntries.map((entry) => ({
+      accountCode: entry.accountCode,
+      debit: Number(entry.credit),
+      credit: Number(entry.debit),
+      customerId: entry.customerId ?? undefined,
+      supplierId: entry.supplierId ?? undefined,
+      reversesEntryId: entry.id
+    }))
+    return this.post(tx, lines, { ...opts, referenceType: 'reversal', referenceId: reversalReferenceId })
   }
 
   balanceOf(codes: string[], asOfDate?: string) {

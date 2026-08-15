@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check
+  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check, index, foreignKey
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -110,7 +110,15 @@ export const ledgerEntries = pgTable('ledger_entries', {
   createdBy: uuid('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
-  oneSided: check('chk_one_side', sql`(${table.debit} > 0 AND ${table.credit} = 0) OR (${table.credit} > 0 AND ${table.debit} = 0)`)
+  oneSided: check('chk_one_side', sql`(${table.debit} > 0 AND ${table.credit} = 0) OR (${table.credit} > 0 AND ${table.debit} = 0)`),
+  reversalReference: foreignKey({
+    columns: [table.reversesEntryId],
+    foreignColumns: [table.id],
+    name: 'ledger_entries_reverses_entry_id_ledger_entries_id_fk'
+  }).onDelete('restrict'),
+  customerDateIdx: index('ledger_entries_customer_date_idx').on(table.customerId, table.entryDate, table.createdAt),
+  supplierDateIdx: index('ledger_entries_supplier_date_idx').on(table.supplierId, table.entryDate, table.createdAt),
+  reversalIdx: index('ledger_entries_reverses_entry_idx').on(table.reversesEntryId)
 }))
 
 // ---------------------------------------------------------------------------

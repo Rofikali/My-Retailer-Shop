@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
 import { customers, ledgerEntries } from '../../server/db/schema'
 import { CustomersService } from '../../server/services/customers.service'
+import { LedgerService } from '../../server/services/ledger.service'
 
 describe('CustomersService.create', () => {
   let userId: string
@@ -41,5 +42,25 @@ describe('CustomersService.create', () => {
       enteredByName: expect.any(String),
       approvedByName: expect.any(String)
     })
+  })
+
+  it('reverses an opening balance with mirror entries and blocks a second reversal', async () => {
+    const customer = await customersService.create(
+      { name: 'Reversal Test', openingBalance: 500, status: 'active' },
+      userId
+    )
+    const ledger = new LedgerService(testDb)
+
+    await testDb.transaction((tx) => ledger.reverse(tx as typeof testDb, customer.id, {
+      entryDate: '2026-08-15',
+      description: 'Reversal: opening balance entered in error',
+      createdBy: userId
+    }))
+
+    const balance = await customersService.getWithBalance(customer.id)
+    expect(balance?.outstandingBalance).toBe(0)
+    await expect(testDb.transaction((tx) => ledger.reverse(tx as typeof testDb, customer.id, {
+      entryDate: '2026-08-15', description: 'Reversal: duplicate attempt', createdBy: userId
+    }))).rejects.toThrow('already been reversed')
   })
 })

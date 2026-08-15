@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       debit: ledgerEntries.debit,
       credit: ledgerEntries.credit,
       description: ledgerEntries.description,
+      referenceId: ledgerEntries.referenceId,
       referenceType: ledgerEntries.referenceType,
       enteredBy: users.name,
       createdAt: ledgerEntries.createdAt,

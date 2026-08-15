@@ -8,6 +8,7 @@ export interface PostLine {
   credit?: number
   customerId?: string
   supplierId?: string
+  reversesEntryId?: string
 }
 
 export interface PostOptions {
@@ -45,10 +46,39 @@ export class LedgerRepo {
         referenceId: opts.referenceId,
         customerId: line.customerId,
         supplierId: line.supplierId,
+        reversesEntryId: line.reversesEntryId,
         createdBy: opts.createdBy
       }))
     )
     return tx.insert(ledgerEntries).values(rows).returning()
+  }
+
+  async getEntriesForReference(tx: Database, referenceId: string) {
+    return tx
+      .select({
+        id: ledgerEntries.id,
+        accountCode: accounts.code,
+        debit: ledgerEntries.debit,
+        credit: ledgerEntries.credit,
+        customerId: ledgerEntries.customerId,
+        supplierId: ledgerEntries.supplierId,
+        referenceType: ledgerEntries.referenceType
+      })
+      .from(ledgerEntries)
+      .innerJoin(accounts, eq(ledgerEntries.accountId, accounts.id))
+      .where(eq(ledgerEntries.referenceId, referenceId))
+  }
+
+  async hasReversalForReference(tx: Database, referenceId: string) {
+    const [row] = await tx.execute<{ exists: boolean }>(sql`
+      SELECT EXISTS (
+        SELECT 1 FROM ledger_entries reversal
+        WHERE reversal.reverses_entry_id IN (
+          SELECT id FROM ledger_entries WHERE reference_id = ${referenceId}
+        )
+      ) AS exists
+    `)
+    return row?.exists ?? false
   }
 
   /** Net balance (debit - credit) for one or more account codes, optionally as-of a date.

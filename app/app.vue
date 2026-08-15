@@ -21,6 +21,7 @@ const navItems = [
   { to: '/customers', label: 'Customers' },
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/reports/trial-balance', label: 'Reports' },
+  { to: '/admin/ledger-entries', label: 'Ledger Audit' },
   { to: '/admin/users', label: 'Admin' },
   { to: '/admin/settings', label: 'Settings' }
 ]

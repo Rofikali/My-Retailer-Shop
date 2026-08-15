@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb, resetTestDb, seedTestChartOfAccounts, seedTestUser } from '../helpers/testDb'
 import { customers, ledgerEntries } from '../../server/db/schema'
 import { LedgerService } from '../../server/services/ledger.service'
@@ -42,18 +43,23 @@ describe('Data integrity regressions (fixes for real bugs found in the original 
     expect(entries).toHaveLength(0) // nothing partial got written
   })
 
-  it('ledger_entries has no code path that updates or deletes a row - the schema constraint plus the absence of any update/delete method on LedgerService/LedgerRepo is the enforcement, not developer discipline', async () => {
+  it('prevents direct update or delete of a posted ledger entry at both the service and database layers', async () => {
     const ledger = new LedgerService(testDb as any)
     await ledger.post(testDb as any, [{ accountCode: 'CASH', debit: 100 }, { accountCode: 'CAPITAL', credit: 100 }], {
       entryDate: '2026-08-01', referenceType: 'opening_balance', createdBy: userId
     })
 
-    // Confirm there is genuinely no update()/delete() method exposed - this is a
-    // structural check, not just "we didn't call one this time".
     expect((ledger as any).update).toBeUndefined()
     expect((ledger as any).delete).toBeUndefined()
-    // The only way to correct an entry is reverse() (see server/services/ledger.service.ts)
     expect(typeof (ledger as any).reverse).toBe('function')
+
+    const [entry] = await testDb.select().from(ledgerEntries).limit(1)
+    await expect(
+      testDb.update(ledgerEntries).set({ description: 'Changed directly' }).where(eq(ledgerEntries.id, entry.id))
+    ).rejects.toThrow(/immutable/)
+    await expect(
+      testDb.delete(ledgerEntries).where(eq(ledgerEntries.id, entry.id))
+    ).rejects.toThrow(/immutable/)
   })
 
   it('the CHECK constraint rejects a row with both debit and credit set (or neither) even via a raw insert that bypasses LedgerService entirely', async () => {
