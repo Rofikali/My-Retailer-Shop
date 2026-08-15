@@ -38,6 +38,7 @@ export class ExpensesService {
   async record(input: ExpenseInputType, userId: string) {
     const expenseNo = await this.repo.nextExpenseNo()
     const accountCode = CATEGORY_TO_ACCOUNT[input.category]
+    const totalPaid = input.amount + (input.tax ?? 0)
 
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
@@ -49,16 +50,21 @@ export class ExpensesService {
         description: input.description,
         vendor: input.vendor,
         amount: String(input.amount),
+        tax: String(input.tax ?? 0),
         paymentMode: input.paymentMode,
+        referenceNo: input.referenceNo || null,
         department: input.department,
+        approvedBy: userId,
+        status: 'posted',
+        remarks: input.remarks || null,
         createdBy: userId
       })
 
       await this.ledger.post(
         dbTx,
         [
-          { accountCode, debit: input.amount },
-          { accountCode: 'CASH', credit: input.amount }
+          { accountCode, debit: totalPaid },
+          { accountCode: 'CASH', credit: totalPaid }
         ],
         {
           entryDate: input.expenseDate,
@@ -69,7 +75,7 @@ export class ExpensesService {
         }
       )
 
-      return expenseRow
+      return { ...expenseRow, totalPaid }
     })
   }
 }

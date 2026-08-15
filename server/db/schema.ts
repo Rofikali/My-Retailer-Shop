@@ -54,11 +54,19 @@ export const customers = pgTable('customers', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: text('code').notNull().unique(),            // CUST-0001, generated, never reused
   name: text('name').notNull(),
+  company: text('company'),
   phone: text('phone'),
   email: text('email'),
+  gstin: text('gstin'),
   address: text('address'),
+  city: text('city'),
+  state: text('state'),
+  pinCode: text('pin_code'),
+  openingBalance: numeric('opening_balance', { precision: 12, scale: 2 }).notNull().default('0'),
   creditLimit: numeric('credit_limit', { precision: 12, scale: 2 }),
   status: text('status').notNull().default('active'),
+  remarks: text('remarks'),
+  assignedTo: uuid('assigned_to').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
 
@@ -188,8 +196,13 @@ export const expenses = pgTable('expenses', {
   description: text('description'),
   vendor: text('vendor'),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  tax: numeric('tax', { precision: 12, scale: 2 }).notNull().default('0'),
   paymentMode: text('payment_mode'),
+  referenceNo: text('reference_no'),
   department: text('department'),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  status: text('status').notNull().default('posted'),
+  remarks: text('remarks'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })

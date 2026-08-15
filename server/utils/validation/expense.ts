@@ -12,8 +12,11 @@ export const ExpenseInput = z.object({
   description: z.string().min(1, 'Description is required').max(200),
   vendor: z.string().max(150).optional(),
   amount: z.number().positive('Amount must be greater than zero'),
+  tax: z.number().min(0).default(0),
   paymentMode: z.enum(['Cash', 'UPI', 'Bank Transfer', 'Other']),
-  department: z.string().max(80).optional()
+  referenceNo: z.string().trim().max(100).optional(),
+  department: z.string().max(80).optional(),
+  remarks: z.string().trim().max(1_000).optional()
 })
 
 export type ExpenseInputType = z.infer<typeof ExpenseInput>

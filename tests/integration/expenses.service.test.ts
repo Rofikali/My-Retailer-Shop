@@ -50,4 +50,15 @@ describe('ExpensesService.record', () => {
     const cashLine = entries.find((e) => Number(e.credit) === 700)
     expect(cashLine).toBeDefined()
   })
+
+  it('includes tax in the paid total and ledger posting', async () => {
+    const result = await expensesService.record(
+      { expenseDate: '2026-08-01', category: 'Utilities', description: 'Taxable service', amount: 100, tax: 18, paymentMode: 'UPI', referenceNo: 'BILL-1', remarks: 'Paid in full' },
+      userId
+    )
+
+    expect(result.totalPaid).toBe(118)
+    const entries = await testDb.select().from(ledgerEntries)
+    expect(entries.some((entry) => Number(entry.credit) === 118)).toBe(true)
+  })
 })

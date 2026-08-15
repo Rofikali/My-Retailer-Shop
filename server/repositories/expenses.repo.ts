@@ -1,6 +1,10 @@
+import { alias } from 'drizzle-orm/pg-core'
 import { and, gte, lte, eq, desc } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { expenses } from '../db/schema'
+import { expenses, users } from '../db/schema'
+
+const enteredBy = alias(users, 'expense_entered_by')
+const approvedBy = alias(users, 'expense_approved_by')
 
 export class ExpensesRepo {
   constructor(private db: Database) {}
@@ -12,8 +16,27 @@ export class ExpensesRepo {
     if (filters.category) conditions.push(eq(expenses.category, filters.category))
 
     return this.db
-      .select()
+      .select({
+        id: expenses.id,
+        expenseNo: expenses.expenseNo,
+        expenseDate: expenses.expenseDate,
+        category: expenses.category,
+        description: expenses.description,
+        vendor: expenses.vendor,
+        amount: expenses.amount,
+        tax: expenses.tax,
+        paymentMode: expenses.paymentMode,
+        referenceNo: expenses.referenceNo,
+        department: expenses.department,
+        status: expenses.status,
+        remarks: expenses.remarks,
+        approvedByName: approvedBy.name,
+        enteredByName: enteredBy.name,
+        createdAt: expenses.createdAt
+      })
       .from(expenses)
+      .leftJoin(approvedBy, eq(expenses.approvedBy, approvedBy.id))
+      .leftJoin(enteredBy, eq(expenses.createdBy, enteredBy.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(expenses.expenseDate), desc(expenses.createdAt))
   }
