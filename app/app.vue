@@ -20,6 +20,7 @@ const navItems = [
   { to: '/expenses', label: 'Expenses' },
   { to: '/customers', label: 'Customers' },
   { to: '/suppliers', label: 'Suppliers' },
+  { to: '/supplier-ledger', label: 'Supplier Ledger' },
   { to: '/party-ledger', label: 'Receipts & Payments' },
   { to: '/reports/trial-balance', label: 'Reports' },
   { to: '/admin/ledger-entries', label: 'Ledger Audit' },
