@@ -1,0 +1,24 @@
+<script setup lang="ts">
+interface Account { code:string; name:string; type:string }
+interface LedgerRow { id:string; entryDate:string; accountHead:string; accountCode:string; voucherNo:string|null; journalNo:string; particulars:string|null; debit:string; credit:string; reference:string|null; status:string; enteredBy:string|null; remarks:string|null }
+interface LedgerResponse { openingBalance:number; entries:LedgerRow[] }
+const { data: accounts } = await useFetch<Account[]>('/api/accounts')
+const selectedAccount = ref('')
+const from = ref('')
+const to = ref('')
+const data = ref<LedgerResponse>({ openingBalance:0, entries:[] })
+const loading = ref(false)
+const error = ref('')
+watch(accounts, (list) => { if (!selectedAccount.value && list?.[0]) selectedAccount.value = list[0].code }, { immediate:true })
+watch([selectedAccount, from, to], async ([account]) => { if (!account) return; loading.value = true; error.value = ''; try { data.value = await $fetch<LedgerResponse>('/api/general-ledger', { query:{ accountCode:account, from:from.value || undefined, to:to.value || undefined } }) } catch (e:any) { error.value = e?.data?.statusMessage || 'Could not load general ledger.' } finally { loading.value = false } }, { immediate:true })
+function fmt(value:string|number) { return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 }).format(Number(value)) }
+function journalNo(row:LedgerRow) { return row.journalNo === 'journal' ? `JNL-${(row.reference || '').slice(0,8).toUpperCase()}` : '—' }
+const runningRows = computed(() => { let balance = data.value.openingBalance; return data.value.entries.map((row) => { balance += Number(row.debit) - Number(row.credit); return { ...row, closingBalance:balance, balanceType:balance >= 0 ? 'Dr' : 'Cr' } }) })
+</script>
+<template>
+  <main><div class="heading"><div><h1>General Ledger</h1><p>Read-only account register calculated from posted double-entry transactions.</p></div><NuxtLink class="link-button" to="/journal">Post Journal</NuxtLink></div>
+    <section class="card filters"><label>Ledger Account<select v-model="selectedAccount"><option value="" disabled>Select account</option><option v-for="account in accounts || []" :key="account.code" :value="account.code">{{ account.name }} ({{ account.code }})</option></select></label><label>From Date<input v-model="from" type="date"></label><label>To Date<input v-model="to" type="date"></label><div v-if="data" class="opening"><span>Opening Balance</span><strong>{{ fmt(data.openingBalance) }}</strong></div></section>
+    <div v-if="error" class="error">{{ error }}</div><div v-if="loading" class="card">Loading ledger…</div><div v-else class="card table"><table><thead><tr><th>Date</th><th>Ledger Account</th><th>Voucher No</th><th>Journal No</th><th>Particulars</th><th>Debit (Rs)</th><th>Credit (Rs)</th><th>Opening Balance (Rs)</th><th>Closing Balance (Rs)</th><th>Balance Type (Dr/Cr)</th><th>Reference</th><th>Status</th><th>Entered By</th><th>Remarks</th></tr></thead><tbody><tr v-for="(row,index) in runningRows" :key="row.id"><td>{{ row.entryDate }}</td><td>{{ row.accountHead }} ({{ row.accountCode }})</td><td>{{ row.voucherNo || '—' }}</td><td>{{ journalNo(row) }}</td><td>{{ row.particulars || '—' }}</td><td>{{ Number(row.debit) ? fmt(row.debit) : '—' }}</td><td>{{ Number(row.credit) ? fmt(row.credit) : '—' }}</td><td>{{ index === 0 ? fmt(data.openingBalance) : '—' }}</td><td>{{ fmt(row.closingBalance) }}</td><td>{{ row.balanceType }}</td><td>{{ row.reference || '—' }}</td><td>Posted</td><td>{{ row.enteredBy || '—' }}</td><td>{{ row.remarks || '—' }}</td></tr><tr v-if="!runningRows.length"><td colspan="14" class="empty">No posted entries for this account and date range.</td></tr></tbody></table></div>
+  </main>
+</template>
+<style scoped>main{max-width:100%}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}h1{font-size:20px;margin:0 0 4px}.heading p{margin:0;color:var(--color-text-muted);font-size:13px}.link-button{padding:8px 12px;background:var(--color-accent);color:#fff;border-radius:5px;text-decoration:none}.filters{display:flex;align-items:end;gap:12px;margin-top:16px}.filters label:first-child{width:360px}.filters label{font-size:12px;min-width:150px}input,select{display:block;width:100%;padding:8px;margin-top:4px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface)}.opening{margin-left:auto}.opening span{display:block;font-size:12px;color:var(--color-text-muted)}.opening strong{font-size:20px}.error{margin-top:12px;color:var(--color-danger)}.table{overflow:auto;margin-top:16px}table{min-width:1800px;width:100%;border-collapse:collapse}th,td{padding:8px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--color-border)}th{font-size:12px}.empty{text-align:center;padding:24px;color:var(--color-text-muted)}</style>
