@@ -4,6 +4,7 @@ import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
 import { customers, ledgerEntries } from '../../server/db/schema'
 import { CustomersService } from '../../server/services/customers.service'
 import { LedgerService } from '../../server/services/ledger.service'
+import { PartyLedgerService } from '../../server/services/party-ledger.service'
 
 describe('CustomersService.create', () => {
   let userId: string
@@ -36,7 +37,7 @@ describe('CustomersService.create', () => {
     const detail = await customersService.getWithBalance(customer.id)
     expect(detail?.outstandingBalance).toBe(500)
     expect(detail?.ledger[0]).toMatchObject({
-      voucherNo: expect.stringMatching(/^VCH-/),
+      voucherNo: expect.stringMatching(/^OPEN-/),
       invoiceNo: null,
       status: 'posted',
       enteredByName: expect.any(String),
@@ -51,14 +52,20 @@ describe('CustomersService.create', () => {
     )
     const ledger = new LedgerService(testDb)
 
-    await testDb.transaction((tx) => ledger.reverse(tx as typeof testDb, customer.id, {
-      entryDate: '2026-08-15',
-      description: 'Reversal: opening balance entered in error',
-      createdBy: userId
-    }))
+    await testDb.transaction(async (tx) => {
+      const dbTx = tx as typeof testDb
+      await ledger.reverse(dbTx, customer.id, {
+        entryDate: '2026-08-15',
+        description: 'Reversal: opening balance entered in error',
+        createdBy: userId
+      })
+      await new PartyLedgerService(testDb).reverseOpeningBalance(dbTx, customer.id, '2026-08-15', 'opening balance entered in error', userId)
+    })
 
     const balance = await customersService.getWithBalance(customer.id)
     expect(balance?.outstandingBalance).toBe(0)
+    expect(balance?.ledger).toHaveLength(2)
+    expect(balance?.ledger.reduce((total, entry) => total + Number(entry.debit) - Number(entry.credit), 0)).toBe(0)
     await expect(testDb.transaction((tx) => ledger.reverse(tx as typeof testDb, customer.id, {
       entryDate: '2026-08-15', description: 'Reversal: duplicate attempt', createdBy: userId
     }))).rejects.toThrow('already been reversed')

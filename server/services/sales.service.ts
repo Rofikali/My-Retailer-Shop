@@ -2,6 +2,7 @@ import { db, type Database } from '../db/client'
 import { SalesRepo } from '../repositories/sales.repo'
 import { LedgerService } from './ledger.service'
 import { InventoryService } from './inventory.service'
+import { PartyLedgerService } from './party-ledger.service'
 import type { SaleInputType } from '../utils/validation/sale'
 
 /**
@@ -16,11 +17,13 @@ export class SalesService {
   private repo: SalesRepo
   private ledger: LedgerService
   private inventory: InventoryService
+  private partyLedger: PartyLedgerService
 
   constructor(private database: Database) {
     this.repo = new SalesRepo(database)
     this.ledger = new LedgerService(database)
     this.inventory = new InventoryService()
+    this.partyLedger = new PartyLedgerService(database)
   }
 
   list() {
@@ -93,6 +96,15 @@ export class SalesService {
           createdBy: userId
         }
       )
+
+      if (input.customerId) {
+        await this.partyLedger.post(dbTx, {
+          entryDate: input.saleDate, voucherNo: `SLS-${invoiceNo}`, invoiceNo, customerId: input.customerId,
+          particulars: `Sale ${invoiceNo}`, debit: String(totalSale), credit: String(input.paymentMode === 'credit' ? 0 : totalSale),
+          paymentMode: input.paymentMode, referenceType: 'sale', referenceId: sale.id, referenceNo: input.referenceNo || null,
+          status, salespersonId: userId, remarks: input.remarks || null, createdBy: userId, approvedBy: userId
+        })
+      }
 
       // 4. Inventory deduction - one movement row per line item, never a direct
       //    UPDATE to a "current stock" column.

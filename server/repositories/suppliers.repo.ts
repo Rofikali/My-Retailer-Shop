@@ -1,6 +1,6 @@
 import { and, eq, asc, desc, ilike, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { ledgerEntries, purchases, suppliers, users } from '../db/schema'
+import { ledgerEntries, partyLedgerEvents, purchases, suppliers, users } from '../db/schema'
 import { alias } from 'drizzle-orm/pg-core'
 
 const enteredBy = alias(users, 'supplier_ledger_entered_by')
@@ -57,21 +57,19 @@ export class SuppliersRepo {
   async getLedger(supplierId: string) {
     return this.db
       .select({
-        id: ledgerEntries.id, entryDate: ledgerEntries.entryDate,
-        voucherNo: sql<string>`CASE WHEN ${purchases.purchaseNo} IS NOT NULL THEN 'PUR-' || ${purchases.purchaseNo} ELSE 'VCH-' || SUBSTRING(${ledgerEntries.id}::text, 1, 8) END`,
-        purchaseNo: purchases.purchaseNo, particulars: ledgerEntries.description,
-        debit: ledgerEntries.debit, credit: ledgerEntries.credit, paymentMode: purchases.paymentMode,
-        referenceNo: purchases.referenceNo,
-        dueDate: sql<string | null>`CASE WHEN ${purchases.purchaseDate} IS NOT NULL THEN (${purchases.purchaseDate} + COALESCE(${suppliers.creditTermsDays}, 0)::integer) END`,
-        status: sql<string>`COALESCE(${purchases.status}::text, 'posted')`, buyerName: buyer.name,
-        remarks: purchases.remarks, enteredByName: enteredBy.name, approvedByName: enteredBy.name, rating: suppliers.rating
+        id: partyLedgerEvents.id, entryDate: partyLedgerEvents.entryDate,
+        voucherNo: partyLedgerEvents.voucherNo, purchaseNo: partyLedgerEvents.purchaseNo, particulars: partyLedgerEvents.particulars,
+        debit: partyLedgerEvents.debit, credit: partyLedgerEvents.credit, paymentMode: partyLedgerEvents.paymentMode,
+        referenceNo: partyLedgerEvents.referenceNo,
+        dueDate: partyLedgerEvents.dueDate,
+        status: partyLedgerEvents.status, buyerName: buyer.name,
+        remarks: partyLedgerEvents.remarks, enteredByName: enteredBy.name, approvedByName: enteredBy.name, rating: suppliers.rating
       })
-      .from(ledgerEntries)
-      .leftJoin(purchases, and(eq(ledgerEntries.referenceId, purchases.id), eq(ledgerEntries.referenceType, 'purchase')))
-      .leftJoin(suppliers, eq(ledgerEntries.supplierId, suppliers.id))
-      .leftJoin(enteredBy, eq(ledgerEntries.createdBy, enteredBy.id))
-      .leftJoin(buyer, eq(purchases.createdBy, buyer.id))
-      .where(eq(ledgerEntries.supplierId, supplierId))
-      .orderBy(asc(ledgerEntries.entryDate), asc(ledgerEntries.createdAt))
+      .from(partyLedgerEvents)
+      .leftJoin(suppliers, eq(partyLedgerEvents.supplierId, suppliers.id))
+      .leftJoin(enteredBy, eq(partyLedgerEvents.createdBy, enteredBy.id))
+      .leftJoin(buyer, eq(partyLedgerEvents.salespersonId, buyer.id))
+      .where(eq(partyLedgerEvents.supplierId, supplierId))
+      .orderBy(asc(partyLedgerEvents.entryDate), asc(partyLedgerEvents.createdAt))
   }
 }

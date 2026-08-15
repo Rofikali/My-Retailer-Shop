@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
-import { suppliers, products, purchases, purchaseItems, ledgerEntries, inventoryMovements } from '../../server/db/schema'
+import { suppliers, products, purchases, purchaseItems, ledgerEntries, inventoryMovements, partyLedgerEvents } from '../../server/db/schema'
 import { PurchasesService } from '../../server/services/purchases.service'
 import { InventoryService } from '../../server/services/inventory.service'
 
@@ -54,6 +54,9 @@ describe('PurchasesService.recordPurchase', () => {
     const entries = await testDb.select().from(ledgerEntries)
     const creditLine = entries.find((e) => Number(e.credit) === 100)
     expect(creditLine?.supplierId).toBeNull() // cash purchase - no payable created
+
+    const [partyEvent] = await testDb.select().from(partyLedgerEvents).where(eq(partyLedgerEvents.supplierId, supplierId))
+    expect(partyEvent).toMatchObject({ debit: '100.00', credit: '100.00', paymentMode: 'cash' })
   })
 
   it('increases inventory by exactly the quantity purchased', async () => {

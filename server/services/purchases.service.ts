@@ -2,6 +2,7 @@ import { db, type Database } from '../db/client'
 import { PurchasesRepo } from '../repositories/purchases.repo'
 import { LedgerService } from './ledger.service'
 import { InventoryService } from './inventory.service'
+import { PartyLedgerService } from './party-ledger.service'
 import type { PurchaseInputType } from '../utils/validation/purchase'
 
 /**
@@ -19,11 +20,13 @@ export class PurchasesService {
   private repo: PurchasesRepo
   private ledger: LedgerService
   private inventory: InventoryService
+  private partyLedger: PartyLedgerService
 
   constructor(private database: Database) {
     this.repo = new PurchasesRepo(database)
     this.ledger = new LedgerService(database)
     this.inventory = new InventoryService(database)
+    this.partyLedger = new PartyLedgerService(database)
   }
 
   list() {
@@ -84,6 +87,13 @@ export class PurchasesService {
           createdBy: userId
         }
       )
+
+      await this.partyLedger.post(dbTx, {
+        entryDate: input.purchaseDate, voucherNo: `PUR-${purchaseNo}`, purchaseNo, supplierId: input.supplierId,
+        particulars: `Purchase ${purchaseNo}`, debit: String(input.paymentMode === 'credit' ? 0 : totalAmount), credit: String(totalAmount),
+        paymentMode: input.paymentMode, referenceType: 'purchase', referenceId: purchase.id, referenceNo: input.referenceNo || null,
+        status, salespersonId: userId, remarks: input.remarks || null, createdBy: userId, approvedBy: userId
+      })
 
       await this.inventory.receive(
         dbTx,

@@ -1,7 +1,7 @@
 import { alias } from 'drizzle-orm/pg-core'
 import { and, eq, asc, desc, ilike, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { customers, ledgerEntries, sales, users } from '../db/schema'
+import { customers, ledgerEntries, partyLedgerEvents, users } from '../db/schema'
 
 const assignee = alias(users, 'customer_assignee')
 const enteredBy = alias(users, 'customer_ledger_entered_by')
@@ -30,7 +30,7 @@ export class CustomersRepo {
         createdAt: customers.createdAt,
         remarks: customers.remarks,
         assignedToName: assignee.name,
-        lastTransaction: sql<string | null>`(SELECT MAX(${ledgerEntries.entryDate}) FROM ${ledgerEntries} WHERE ${ledgerEntries.customerId} = ${customers.id})`
+        lastTransaction: sql<string | null>`(SELECT MAX(${partyLedgerEvents.entryDate}) FROM ${partyLedgerEvents} WHERE ${partyLedgerEvents.customerId} = ${customers.id})`
       })
       .from(customers)
       .leftJoin(assignee, eq(customers.assignedTo, assignee.id))
@@ -70,28 +70,27 @@ export class CustomersRepo {
   async getLedger(customerId: string) {
     return this.db
       .select({
-        id: ledgerEntries.id,
-        entryDate: ledgerEntries.entryDate,
-        voucherNo: sql<string>`CASE WHEN ${sales.invoiceNo} IS NOT NULL THEN 'SLS-' || ${sales.invoiceNo} ELSE 'VCH-' || SUBSTRING(${ledgerEntries.id}::text, 1, 8) END`,
-        invoiceNo: sales.invoiceNo,
-        particulars: ledgerEntries.description,
-        debit: ledgerEntries.debit,
-        credit: ledgerEntries.credit,
-        paymentMode: sales.paymentMode,
-        referenceNo: sales.referenceNo,
-        dueDate: sql<string | null>`NULL`,
-        status: sql<string>`COALESCE(${sales.status}::text, 'posted')`,
+        id: partyLedgerEvents.id,
+        entryDate: partyLedgerEvents.entryDate,
+        voucherNo: partyLedgerEvents.voucherNo,
+        invoiceNo: partyLedgerEvents.invoiceNo,
+        particulars: partyLedgerEvents.particulars,
+        debit: partyLedgerEvents.debit,
+        credit: partyLedgerEvents.credit,
+        paymentMode: partyLedgerEvents.paymentMode,
+        referenceNo: partyLedgerEvents.referenceNo,
+        dueDate: partyLedgerEvents.dueDate,
+        status: partyLedgerEvents.status,
         salespersonName: salesperson.name,
-        remarks: sales.remarks,
+        remarks: partyLedgerEvents.remarks,
         enteredByName: enteredBy.name,
         approvedByName: enteredBy.name,
-        createdAt: ledgerEntries.createdAt
+        createdAt: partyLedgerEvents.createdAt
       })
-      .from(ledgerEntries)
-      .leftJoin(sales, and(eq(ledgerEntries.referenceId, sales.id), eq(ledgerEntries.referenceType, 'sale')))
-      .leftJoin(enteredBy, eq(ledgerEntries.createdBy, enteredBy.id))
-      .leftJoin(salesperson, eq(sales.createdBy, salesperson.id))
-      .where(eq(ledgerEntries.customerId, customerId))
-      .orderBy(asc(ledgerEntries.entryDate), asc(ledgerEntries.createdAt))
+      .from(partyLedgerEvents)
+      .leftJoin(enteredBy, eq(partyLedgerEvents.createdBy, enteredBy.id))
+      .leftJoin(salesperson, eq(partyLedgerEvents.salespersonId, salesperson.id))
+      .where(eq(partyLedgerEvents.customerId, customerId))
+      .orderBy(asc(partyLedgerEvents.entryDate), asc(partyLedgerEvents.createdAt))
   }
 }

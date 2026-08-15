@@ -121,6 +121,41 @@ export const ledgerEntries = pgTable('ledger_entries', {
   reversalIdx: index('ledger_entries_reverses_entry_idx').on(table.reversesEntryId)
 }))
 
+// Party subledger records the full commercial history for one customer or supplier.
+// It is separate from the general ledger so cash/UPI transactions can be visible
+// without changing receivable/payable balances.
+export const partyLedgerEvents = pgTable('party_ledger_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entryDate: date('entry_date').notNull(),
+  voucherNo: text('voucher_no').notNull(),
+  invoiceNo: text('invoice_no'),
+  purchaseNo: text('purchase_no'),
+  customerId: uuid('customer_id').references(() => customers.id),
+  supplierId: uuid('supplier_id').references(() => suppliers.id),
+  particulars: text('particulars').notNull(),
+  debit: numeric('debit', { precision: 12, scale: 2 }).notNull().default('0'),
+  credit: numeric('credit', { precision: 12, scale: 2 }).notNull().default('0'),
+  paymentMode: paymentModeEnum('payment_mode'),
+  referenceType: referenceTypeEnum('reference_type').notNull(),
+  referenceId: uuid('reference_id').notNull(),
+  referenceNo: text('reference_no'),
+  dueDate: date('due_date'),
+  status: text('status').notNull().default('posted'),
+  salespersonId: uuid('salesperson_id').references(() => users.id),
+  remarks: text('remarks'),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  approvedBy: uuid('approved_by').references(() => users.id),
+  reversesEntryId: uuid('reverses_entry_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  partyRequired: check('party_ledger_events_one_party', sql`((${table.customerId} IS NOT NULL)::int + (${table.supplierId} IS NOT NULL)::int) = 1`),
+  amountPresent: check('party_ledger_events_amount_present', sql`${table.debit} >= 0 AND ${table.credit} >= 0 AND (${table.debit} > 0 OR ${table.credit} > 0)`),
+  reversalReference: foreignKey({ columns: [table.reversesEntryId], foreignColumns: [table.id], name: 'party_ledger_events_reverses_entry_id_party_ledger_events_id_fk' }).onDelete('restrict'),
+  customerDateIdx: index('party_ledger_events_customer_date_idx').on(table.customerId, table.entryDate, table.createdAt),
+  supplierDateIdx: index('party_ledger_events_supplier_date_idx').on(table.supplierId, table.entryDate, table.createdAt),
+  reversalIdx: index('party_ledger_events_reverses_entry_idx').on(table.reversesEntryId)
+}))
+
 // ---------------------------------------------------------------------------
 // Inventory
 // ---------------------------------------------------------------------------

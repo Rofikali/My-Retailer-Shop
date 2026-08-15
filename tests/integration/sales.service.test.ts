@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
-import { customers, products, sales, saleItems, ledgerEntries, inventoryMovements } from '../../server/db/schema'
+import { customers, products, sales, saleItems, ledgerEntries, inventoryMovements, partyLedgerEvents } from '../../server/db/schema'
 import { SalesService } from '../../server/services/sales.service'
 
 describe('SalesService.recordSale', () => {
@@ -46,13 +46,16 @@ describe('SalesService.recordSale', () => {
 
   it('posts to CASH (not DEBTORS) for a cash sale, with no customer tagged on the ledger line', async () => {
     await salesService.recordSale(
-      { saleDate: '2026-08-01', paymentMode: 'cash', items: [{ productId, quantity: 1, costPrice: 10, sellingPrice: 15 }] },
+      { saleDate: '2026-08-01', customerId, paymentMode: 'cash', items: [{ productId, quantity: 1, costPrice: 10, sellingPrice: 15 }] },
       userId
     )
 
     const entries = await testDb.select().from(ledgerEntries)
     const revenueLegDebit = entries.find((e) => Number(e.debit) === 15)
     expect(revenueLegDebit?.customerId).toBeNull()
+
+    const [partyEvent] = await testDb.select().from(partyLedgerEvents).where(eq(partyLedgerEvents.customerId, customerId))
+    expect(partyEvent).toMatchObject({ debit: '15.00', credit: '15.00', paymentMode: 'cash' })
   })
 
   it('deducts inventory by exactly the quantity sold', async () => {

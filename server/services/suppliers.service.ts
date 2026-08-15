@@ -1,15 +1,18 @@
 import { db, type Database } from '../db/client'
 import { SuppliersRepo } from '../repositories/suppliers.repo'
 import { LedgerService } from './ledger.service'
+import { PartyLedgerService } from './party-ledger.service'
 import type { SupplierInputType } from '../utils/validation/supplier'
 
 export class SuppliersService {
   private repo: SuppliersRepo
   private ledger: LedgerService
+  private partyLedger: PartyLedgerService
 
   constructor(private database: Database = db) {
     this.repo = new SuppliersRepo(database)
     this.ledger = new LedgerService(database)
+    this.partyLedger = new PartyLedgerService(database)
   }
 
   list(search?: string) {
@@ -32,6 +35,11 @@ export class SuppliersService {
       if ((input.openingBalance ?? 0) > 0) {
         await this.ledger.post(dbTx, [{ accountCode: 'CAPITAL', debit: input.openingBalance }, { accountCode: 'CREDITORS', credit: input.openingBalance, supplierId: supplier.id }],
           { entryDate: new Date().toISOString().slice(0, 10), description: `Opening balance: ${supplier.name}`, referenceType: 'opening_balance', referenceId: supplier.id, createdBy: userId })
+        await this.partyLedger.post(dbTx, {
+          entryDate: new Date().toISOString().slice(0, 10), voucherNo: `OPEN-${supplier.code}`, supplierId: supplier.id,
+          particulars: `Opening balance: ${supplier.name}`, debit: '0', credit: String(input.openingBalance),
+          referenceType: 'opening_balance', referenceId: supplier.id, status: 'posted', createdBy: userId, approvedBy: userId
+        })
       }
       return supplier
     })
