@@ -1,81 +1,13 @@
 <script setup lang="ts">
-interface Supplier {
-  id: string
-  code: string
-  name: string
-  contactPerson: string | null
-  phone: string | null
-  status: string
-}
-
+interface Supplier { id: string; code: string; name: string; company: string | null; contactPerson: string | null; phone: string | null; email: string | null; gstin: string | null; address: string | null; city: string | null; state: string | null; pinCode: string | null; openingBalance: string; creditTermsDays: string | null; creditLimit: string | null; supplierType: string; status: string; createdAt: string; lastPurchase: string | null; remarks: string | null }
 const { data: supplierList, refresh } = await useFetch<Supplier[]>('/api/suppliers')
-
-const showForm = ref(false)
-const submitting = ref(false)
-const formError = ref('')
-const form = reactive({ name: '', contactPerson: '', phone: '', address: '', creditTermsDays: 30 })
-
-async function submit() {
-  formError.value = ''
-  submitting.value = true
-  try {
-    await $fetch('/api/suppliers', { method: 'POST', body: { ...form } })
-    showForm.value = false
-    form.name = ''; form.contactPerson = ''; form.phone = ''; form.address = ''; form.creditTermsDays = 30
-    await refresh()
-  } catch (e: any) {
-    formError.value = e?.data?.statusMessage || 'Could not save supplier'
-  } finally {
-    submitting.value = false
-  }
-}
+const showForm = ref(false); const submitting = ref(false); const formError = ref('')
+const form = reactive({ name: '', company: '', contactPerson: '', phone: '', email: '', gstin: '', address: '', city: '', state: '', pinCode: '', openingBalance: 0, creditTermsDays: 30, creditLimit: 0, supplierType: 'regular', status: 'active' as 'active' | 'inactive', remarks: '', rating: 0 })
+function fmt(value: string | number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value)) }
+function dateOnly(value: string) { return value.slice(0, 10) }
+async function submit() { formError.value = ''; submitting.value = true; try { await $fetch('/api/suppliers', { method: 'POST', body: { ...form, company: form.company || undefined, contactPerson: form.contactPerson || undefined, phone: form.phone || undefined, email: form.email || undefined, gstin: form.gstin || undefined, address: form.address || undefined, city: form.city || undefined, state: form.state || undefined, pinCode: form.pinCode || undefined, creditLimit: form.creditLimit || undefined, rating: form.rating || undefined, remarks: form.remarks || undefined } }); showForm.value = false; Object.assign(form, { name: '', company: '', contactPerson: '', phone: '', email: '', gstin: '', address: '', city: '', state: '', pinCode: '', openingBalance: 0, creditTermsDays: 30, creditLimit: 0, supplierType: 'regular', status: 'active', remarks: '', rating: 0 }); await refresh() } catch (error: any) { formError.value = error?.data?.data?.formErrors?.[0] || error?.data?.statusMessage || 'Could not save supplier' } finally { submitting.value = false } }
 </script>
-
-<template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h1 style="font-size: 20px; margin: 0;">Suppliers</h1>
-      <button style="padding: 8px 14px; background: var(--color-accent); color: white; border: none; border-radius: 6px; cursor: pointer;" @click="showForm = !showForm">
-        {{ showForm ? 'Cancel' : '+ New Supplier' }}
-      </button>
-    </div>
-
-    <form v-if="showForm" class="card" style="margin-bottom: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;" @submit.prevent="submit">
-      <div><label style="display:block; font-size:12px; margin-bottom:4px;">Name</label>
-        <input v-model="form.name" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
-      <div><label style="display:block; font-size:12px; margin-bottom:4px;">Contact Person</label>
-        <input v-model="form.contactPerson" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
-      <div><label style="display:block; font-size:12px; margin-bottom:4px;">Phone</label>
-        <input v-model="form.phone" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
-      <div><label style="display:block; font-size:12px; margin-bottom:4px;">Credit Terms (Days)</label>
-        <input v-model.number="form.creditTermsDays" type="number" min="0" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
-      <div style="grid-column: span 2;"><label style="display:block; font-size:12px; margin-bottom:4px;">Address</label>
-        <input v-model="form.address" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
-      <div style="grid-column: span 2;">
-        <div v-if="formError" style="color: var(--color-danger); font-size: 13px; margin-bottom: 8px;">{{ formError }}</div>
-        <button type="submit" :disabled="submitting" style="padding: 10px 16px; background: var(--color-accent); color: white; border: none; border-radius: 6px; cursor: pointer;">
-          {{ submitting ? 'Saving…' : 'Save Supplier' }}
-        </button>
-      </div>
-    </form>
-
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
-          <th style="padding: 8px;">Code</th><th style="padding: 8px;">Name</th>
-          <th style="padding: 8px;">Contact</th><th style="padding: 8px;">Phone</th><th style="padding: 8px;">Status</th><th style="padding: 8px;"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="s in supplierList" :key="s.id" style="border-bottom: 1px solid var(--color-border);">
-          <td style="padding: 8px;">{{ s.code }}</td>
-          <td style="padding: 8px;">{{ s.name }}</td>
-          <td style="padding: 8px;">{{ s.contactPerson || '—' }}</td>
-          <td style="padding: 8px;">{{ s.phone || '—' }}</td>
-          <td style="padding: 8px;">{{ s.status }}</td>
-          <td style="padding: 8px;"><NuxtLink :to="`/suppliers/${s.id}`">View ledger →</NuxtLink></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</template>
+<template><div><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h1 style="font-size:20px; margin:0;">Supplier Master</h1><button style="padding:8px 14px; background:var(--color-accent); color:white; border:none; border-radius:6px; cursor:pointer;" @click="showForm = !showForm">{{ showForm ? 'Cancel' : '+ New Supplier' }}</button></div>
+<form v-if="showForm" class="card" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(3,1fr); gap:12px;" @submit.prevent="submit"><div><label>Supplier Name</label><input v-model="form.name" required></div><div><label>Company</label><input v-model="form.company"></div><div><label>Contact Person</label><input v-model="form.contactPerson"></div><div><label>Mobile</label><input v-model="form.phone"></div><div><label>Email</label><input v-model="form.email" type="email"></div><div><label>GSTIN</label><input v-model="form.gstin"></div><div style="grid-column:span 3;"><label>Address</label><input v-model="form.address"></div><div><label>City</label><input v-model="form.city"></div><div><label>State</label><input v-model="form.state"></div><div><label>PIN Code</label><input v-model="form.pinCode"></div><div><label>Opening Balance (Rs)</label><input v-model.number="form.openingBalance" type="number" min="0" step="0.01"></div><div><label>Credit Terms (Days)</label><input v-model.number="form.creditTermsDays" type="number" min="0"></div><div><label>Credit Limit (Rs)</label><input v-model.number="form.creditLimit" type="number" min="0" step="0.01"></div><div><label>Supplier Type</label><input v-model="form.supplierType" required></div><div><label>Rating (0–5)</label><input v-model.number="form.rating" type="number" min="0" max="5" step="0.5"></div><div><label>Status</label><select v-model="form.status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div><div style="grid-column:span 3;"><label>Remarks</label><input v-model="form.remarks"></div><div style="grid-column:span 3;"><div v-if="formError" style="color:var(--color-danger); margin-bottom:8px;">{{ formError }}</div><button type="submit" :disabled="submitting">{{ submitting ? 'Saving…' : 'Save Supplier' }}</button></div></form>
+<div style="overflow-x:auto;"><table style="width:100%; min-width:2050px; border-collapse:collapse;"><thead><tr><th>Supplier ID</th><th>Supplier Name</th><th>Company</th><th>Mobile</th><th>Email</th><th>GSTIN</th><th>Address</th><th>City</th><th>State</th><th>PIN Code</th><th>Opening Balance (Rs)</th><th>Credit Terms</th><th>Status</th><th>Created On</th><th>Last Purchase</th><th>Remarks</th><th>Contact Person</th><th>Supplier Type</th><th>Credit Limit (Rs)</th><th>Supplier Ledger</th></tr></thead><tbody><tr v-for="supplier in supplierList" :key="supplier.id"><td>{{ supplier.code }}</td><td>{{ supplier.name }}</td><td>{{ supplier.company || '—' }}</td><td>{{ supplier.phone || '—' }}</td><td>{{ supplier.email || '—' }}</td><td>{{ supplier.gstin || '—' }}</td><td>{{ supplier.address || '—' }}</td><td>{{ supplier.city || '—' }}</td><td>{{ supplier.state || '—' }}</td><td>{{ supplier.pinCode || '—' }}</td><td>{{ fmt(supplier.openingBalance) }}</td><td>{{ supplier.creditTermsDays || '—' }}</td><td>{{ supplier.status }}</td><td>{{ dateOnly(supplier.createdAt) }}</td><td>{{ supplier.lastPurchase || '—' }}</td><td>{{ supplier.remarks || '—' }}</td><td>{{ supplier.contactPerson || '—' }}</td><td>{{ supplier.supplierType }}</td><td>{{ supplier.creditLimit ? fmt(supplier.creditLimit) : '—' }}</td><td><NuxtLink :to="`/suppliers/${supplier.id}`">View Ledger →</NuxtLink></td></tr></tbody></table></div></div></template>
+<style scoped>label{display:block;font-size:12px;margin-bottom:4px}input,select{width:100%;padding:8px;border:1px solid var(--color-border);border-radius:6px}button{padding:10px 16px;background:var(--color-accent);color:white;border:none;border-radius:6px;cursor:pointer}th,td{padding:8px;text-align:left;border-bottom:1px solid var(--color-border)}th{white-space:nowrap;font-size:12px}</style>

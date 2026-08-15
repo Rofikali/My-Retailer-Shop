@@ -1,13 +1,25 @@
-import { eq, asc, desc, ilike, sql } from 'drizzle-orm'
+import { and, eq, asc, desc, ilike, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { suppliers, ledgerEntries } from '../db/schema'
+import { ledgerEntries, purchases, suppliers, users } from '../db/schema'
+import { alias } from 'drizzle-orm/pg-core'
+
+const enteredBy = alias(users, 'supplier_ledger_entered_by')
+const buyer = alias(users, 'supplier_ledger_buyer')
 
 export class SuppliersRepo {
   constructor(private db: Database) {}
 
   async list(search?: string) {
     return this.db
-      .select()
+      .select({
+        id: suppliers.id, code: suppliers.code, name: suppliers.name, company: suppliers.company,
+        contactPerson: suppliers.contactPerson, phone: suppliers.phone, email: suppliers.email,
+        gstin: suppliers.gstin, address: suppliers.address, city: suppliers.city, state: suppliers.state,
+        pinCode: suppliers.pinCode, openingBalance: suppliers.openingBalance, creditTermsDays: suppliers.creditTermsDays,
+        creditLimit: suppliers.creditLimit, supplierType: suppliers.supplierType, rating: suppliers.rating,
+        status: suppliers.status, remarks: suppliers.remarks, createdAt: suppliers.createdAt,
+        lastPurchase: sql<string | null>`(SELECT MAX(${purchases.purchaseDate}) FROM ${purchases} WHERE ${purchases.supplierId} = ${suppliers.id})`
+      })
       .from(suppliers)
       .where(search ? ilike(suppliers.name, `%${search}%`) : undefined)
       .orderBy(asc(suppliers.name))
@@ -18,8 +30,8 @@ export class SuppliersRepo {
     return row ?? null
   }
 
-  async insert(values: typeof suppliers.$inferInsert) {
-    const [row] = await this.db.insert(suppliers).values(values).returning()
+  async insert(tx: Database, values: typeof suppliers.$inferInsert) {
+    const [row] = await tx.insert(suppliers).values(values).returning()
     return row
   }
 
@@ -44,8 +56,21 @@ export class SuppliersRepo {
 
   async getLedger(supplierId: string) {
     return this.db
-      .select()
+      .select({
+        id: ledgerEntries.id, entryDate: ledgerEntries.entryDate,
+        voucherNo: sql<string>`CASE WHEN ${purchases.purchaseNo} IS NOT NULL THEN 'PUR-' || ${purchases.purchaseNo} ELSE 'VCH-' || SUBSTRING(${ledgerEntries.id}::text, 1, 8) END`,
+        purchaseNo: purchases.purchaseNo, particulars: ledgerEntries.description,
+        debit: ledgerEntries.debit, credit: ledgerEntries.credit, paymentMode: purchases.paymentMode,
+        referenceNo: purchases.referenceNo,
+        dueDate: sql<string | null>`CASE WHEN ${purchases.purchaseDate} IS NOT NULL THEN (${purchases.purchaseDate} + COALESCE(${suppliers.creditTermsDays}, 0)::integer) END`,
+        status: sql<string>`COALESCE(${purchases.status}::text, 'posted')`, buyerName: buyer.name,
+        remarks: purchases.remarks, enteredByName: enteredBy.name, approvedByName: enteredBy.name, rating: suppliers.rating
+      })
       .from(ledgerEntries)
+      .leftJoin(purchases, and(eq(ledgerEntries.referenceId, purchases.id), eq(ledgerEntries.referenceType, 'purchase')))
+      .leftJoin(suppliers, eq(ledgerEntries.supplierId, suppliers.id))
+      .leftJoin(enteredBy, eq(ledgerEntries.createdBy, enteredBy.id))
+      .leftJoin(buyer, eq(purchases.createdBy, buyer.id))
       .where(eq(ledgerEntries.supplierId, supplierId))
       .orderBy(asc(ledgerEntries.entryDate), asc(ledgerEntries.createdAt))
   }

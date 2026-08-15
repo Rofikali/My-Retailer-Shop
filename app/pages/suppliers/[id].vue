@@ -1,69 +1,9 @@
 <script setup lang="ts">
-interface LedgerRow {
-  id: string
-  entryDate: string
-  debit: string
-  credit: string
-  description: string | null
-}
-interface SupplierDetail {
-  id: string
-  code: string
-  name: string
-  contactPerson: string | null
-  phone: string | null
-  outstandingBalance: number
-  ledger: LedgerRow[]
-}
-
-const route = useRoute()
-const { data } = await useFetch<SupplierDetail>(`/api/suppliers/${route.params.id}`)
-
-function fmt(v: number | string) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(v))
-}
-
-// Creditors are credit-normal: running balance = cumulative Credit - Debit, the
-// opposite convention from the Customer Ledger's Debit - Credit. See
-// SuppliersRepo.getOutstandingBalance() for the same rule applied to the total.
-const runningLedger = computed(() => {
-  if (!data.value) return []
-  let balance = 0
-  return data.value.ledger.map((row) => {
-    balance += Number(row.credit) - Number(row.debit)
-    return { ...row, runningBalance: balance }
-  })
-})
+interface LedgerRow { id: string; entryDate: string; voucherNo: string; purchaseNo: string | null; particulars: string | null; debit: string; credit: string; paymentMode: string | null; referenceNo: string | null; dueDate: string | null; status: string; buyerName: string | null; remarks: string | null; enteredByName: string | null; approvedByName: string | null; rating: string | null }
+interface SupplierDetail { id: string; code: string; name: string; outstandingBalance: number; ledger: LedgerRow[] }
+const route = useRoute(); const { data } = await useFetch<SupplierDetail>(`/api/suppliers/${route.params.id}`)
+function fmt(value: string | number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value)) }
+const runningLedger = computed(() => { if (!data.value) return []; let balance = 0; return data.value.ledger.map((row) => { balance += Number(row.credit) - Number(row.debit); return { ...row, runningBalance: balance } }) })
 </script>
-
-<template>
-  <div v-if="data">
-    <NuxtLink to="/suppliers" style="font-size: 13px;">← Back to Suppliers</NuxtLink>
-    <h1 style="font-size: 20px; margin: 12px 0 4px;">{{ data.name }} <span style="color: var(--color-text-muted); font-weight: 400;">({{ data.code }})</span></h1>
-    <p style="color: var(--color-text-muted); margin-bottom: 20px;">{{ data.contactPerson || '—' }} · {{ data.phone || '—' }}</p>
-
-    <div class="card" style="max-width: 300px; margin-bottom: 20px;">
-      <div style="font-size: 12px; color: var(--color-text-muted);">Outstanding Balance (owed by us)</div>
-      <div class="kpi-value" style="font-size: 22px; font-weight: 700;">{{ fmt(data.outstandingBalance) }}</div>
-    </div>
-
-    <table style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
-          <th style="padding: 8px;">Date</th><th style="padding: 8px;">Description</th>
-          <th style="padding: 8px; text-align: right;">Debit (Payments)</th><th style="padding: 8px; text-align: right;">Credit (Purchases)</th>
-          <th style="padding: 8px; text-align: right;">Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in runningLedger" :key="row.id" style="border-bottom: 1px solid var(--color-border);">
-          <td style="padding: 8px;">{{ row.entryDate }}</td>
-          <td style="padding: 8px;">{{ row.description || '—' }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ Number(row.debit) > 0 ? fmt(row.debit) : '—' }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ Number(row.credit) > 0 ? fmt(row.credit) : '—' }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ fmt(row.runningBalance) }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</template>
+<template><div v-if="data"><NuxtLink to="/suppliers">← Back to Supplier Master</NuxtLink><div style="display:flex;justify-content:space-between;align-items:end;margin:12px 0 20px;"><div><h1 style="font-size:20px;margin:0;">Supplier Ledger</h1><p style="color:var(--color-text-muted);margin:4px 0 0;">{{ data.name }} · {{ data.code }}</p></div><div class="card" style="margin:0;padding:10px 14px;"><div style="font-size:12px;color:var(--color-text-muted);">Running Balance</div><strong class="kpi-value">{{ fmt(data.outstandingBalance) }}</strong></div></div><div style="overflow-x:auto;"><table style="width:100%;min-width:1950px;border-collapse:collapse;"><thead><tr><th>Date</th><th>Voucher No</th><th>Purchase No</th><th>Supplier ID</th><th>Supplier Name</th><th>Particulars</th><th>Debit - Payments (Rs)</th><th>Credit - Purchases (Rs)</th><th>Running Balance (Rs)</th><th>Payment Mode</th><th>Reference No</th><th>Due Date</th><th>Status</th><th>Buyer</th><th>Remarks</th><th>Entered By</th><th>Approved By</th><th>Rating</th></tr></thead><tbody><tr v-for="row in runningLedger" :key="row.id"><td>{{ row.entryDate }}</td><td>{{ row.voucherNo }}</td><td>{{ row.purchaseNo || '—' }}</td><td>{{ data.code }}</td><td>{{ data.name }}</td><td>{{ row.particulars || '—' }}</td><td>{{ Number(row.debit) > 0 ? fmt(row.debit) : '—' }}</td><td>{{ Number(row.credit) > 0 ? fmt(row.credit) : '—' }}</td><td>{{ fmt(row.runningBalance) }}</td><td>{{ row.paymentMode || '—' }}</td><td>{{ row.referenceNo || '—' }}</td><td>{{ row.dueDate || '—' }}</td><td>{{ row.status }}</td><td>{{ row.buyerName || '—' }}</td><td>{{ row.remarks || '—' }}</td><td>{{ row.enteredByName || '—' }}</td><td>{{ row.approvedByName || '—' }}</td><td>{{ row.rating || '—' }}</td></tr></tbody></table></div></div></template>
+<style scoped>th,td{padding:8px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--color-border)}th{font-size:12px}</style>

@@ -43,6 +43,13 @@
       "when": 1786722249783,
       "tag": "0005_overjoyed_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786779629784,
+      "tag": "0006_left_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

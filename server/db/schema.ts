@@ -74,12 +74,22 @@ export const suppliers = pgTable('suppliers', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
+  company: text('company'),
   contactPerson: text('contact_person'),
   phone: text('phone'),
+  email: text('email'),
+  gstin: text('gstin'),
   address: text('address'),
+  city: text('city'),
+  state: text('state'),
+  pinCode: text('pin_code'),
   openingBalance: numeric('opening_balance', { precision: 12, scale: 2 }).notNull().default('0'),
   creditTermsDays: numeric('credit_terms_days', { precision: 5, scale: 0 }),
+  creditLimit: numeric('credit_limit', { precision: 12, scale: 2 }),
+  supplierType: text('supplier_type').notNull().default('regular'),
+  rating: numeric('rating', { precision: 3, scale: 1 }),
   status: text('status').notNull().default('active'),
+  remarks: text('remarks'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
 
