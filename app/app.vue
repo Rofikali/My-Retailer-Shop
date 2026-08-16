@@ -26,6 +26,8 @@ const navItems = [
   { to: '/general-ledger', label: 'General Ledger' },
   { to: '/party-ledger', label: 'Receipts & Payments' },
   { to: '/reports/trial-balance', label: 'Reports' },
+  { to: '/reports/cash-flow', label: 'Cash Flow Statement' },
+  { to: '/reports/profit-and-loss', label: 'Profit & Loss' },
   { to: '/admin/ledger-entries', label: 'Ledger Audit' },
   { to: '/admin/users', label: 'Admin' },
   { to: '/admin/settings', label: 'Settings' }

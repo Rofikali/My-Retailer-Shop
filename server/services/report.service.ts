@@ -1,5 +1,7 @@
 import { db, type Database } from '../db/client'
 import { LedgerService } from './ledger.service'
+import { and, eq, gte, lte } from 'drizzle-orm'
+import { accounts, ledgerEntries } from '../db/schema'
 
 interface ReportRow {
   accountCode: string
@@ -19,16 +21,16 @@ interface ReportRow {
 export class ReportService {
   private ledger: LedgerService
 
-  constructor(database: Database = db) {
+  constructor(private database: Database = db) {
     this.ledger = new LedgerService(database)
   }
 
   async trialBalance(asOfDate: string) {
-    const assets = await this.ledger.balancesByType('asset', undefined, asOfDate)
-    const liabilities = await this.ledger.balancesByType('liability', undefined, asOfDate)
-    const equity = await this.ledger.balancesByType('equity', undefined, asOfDate)
-    const income = await this.ledger.balancesByType('income', undefined, asOfDate)
-    const expense = await this.ledger.balancesByType('expense', undefined, asOfDate)
+    const assets = (await this.ledger.balancesByType('asset', undefined, asOfDate)).map((row) => ({ ...row, ledgerGroup: 'Asset' }))
+    const liabilities = (await this.ledger.balancesByType('liability', undefined, asOfDate)).map((row) => ({ ...row, ledgerGroup: 'Liability' }))
+    const equity = (await this.ledger.balancesByType('equity', undefined, asOfDate)).map((row) => ({ ...row, ledgerGroup: 'Equity' }))
+    const income = (await this.ledger.balancesByType('income', undefined, asOfDate)).map((row) => ({ ...row, ledgerGroup: 'Income' }))
+    const expense = (await this.ledger.balancesByType('expense', undefined, asOfDate)).map((row) => ({ ...row, ledgerGroup: 'Expense' }))
 
     const rows = [...assets, ...liabilities, ...equity, ...income, ...expense].map((row) => {
       const net = Number(row.debit) - Number(row.credit)
@@ -36,7 +38,11 @@ export class ReportService {
         accountCode: row.accountCode,
         accountName: row.accountName,
         debit: Math.max(net, 0),
-        credit: Math.max(-net, 0)
+        credit: Math.max(-net, 0),
+        ledgerGroup: row.ledgerGroup,
+        difference: Math.round(net * 100) / 100,
+        status: net >= 0 ? 'Dr Balance' : 'Cr Balance',
+        remarks: 'Calculated from posted General Ledger entries.'
       }
     })
 
@@ -103,16 +109,29 @@ export class ReportService {
   async cashFlow(from: string, to: string) {
     const openingCash = await this.ledger.balanceBefore(['CASH'], from)
     const closingCash = await this.ledger.balanceOf(['CASH'], to)
-
-    return {
-      from,
-      to,
-      openingCash,
-      closingCash,
-      netChange: Math.round((closingCash - openingCash) * 100) / 100
-      // Extend with operating/financing activity breakdowns once you have enough
-      // transaction volume to make the split meaningful - see HLD for the target shape.
+    const sourceRows = await this.database.select({ entryDate:ledgerEntries.entryDate, referenceId:ledgerEntries.referenceId, accountCode:accounts.code, accountName:accounts.name, debit:ledgerEntries.debit, credit:ledgerEntries.credit }).from(ledgerEntries).innerJoin(accounts, eq(ledgerEntries.accountId, accounts.id)).where(and(gte(ledgerEntries.entryDate, from), lte(ledgerEntries.entryDate, to)))
+    const groups = new Map<string, typeof sourceRows>()
+    for (const row of sourceRows) { const key = row.referenceId || row.entryDate; const group = groups.get(key) || []; group.push(row); groups.set(key, group) }
+    const operating = new Map<string, { label:string; amount:number }>()
+    const financing = new Map<string, { label:string; amount:number }>()
+    for (const group of groups.values()) {
+      const cashRows = group.filter((row) => row.accountCode === 'CASH')
+      const counterpart = group.find((row) => row.accountCode !== 'CASH')
+      if (!counterpart) continue
+      for (const cashRow of cashRows) {
+        const amount = Number(cashRow.debit) - Number(cashRow.credit)
+        const target = counterpart.accountCode === 'CAPITAL' || counterpart.accountCode === 'DRAWINGS' ? financing : operating
+        const current = target.get(counterpart.accountCode) || { label: counterpart.accountName, amount: 0 }
+        current.amount += amount; target.set(counterpart.accountCode, current)
+      }
     }
+    const toRows = (rows: Map<string, { label:string; amount:number }>) => [...rows.values()].map((row) => ({ ...row, amount:Math.round(row.amount * 100) / 100 }))
+    const operatingRows = toRows(operating)
+    const financingRows = toRows(financing)
+    const netOperating = operatingRows.reduce((sum, row) => sum + row.amount, 0)
+    const netFinancing = financingRows.reduce((sum, row) => sum + row.amount, 0)
+    const netChange = Math.round((netOperating + netFinancing) * 100) / 100
+    return { from, to, openingCash, closingCash, netChange, operating:{ rows:operatingRows, total:Math.round(netOperating * 100) / 100 }, financing:{ rows:financingRows, total:Math.round(netFinancing * 100) / 100 }, tieOutDifference:Math.round((closingCash - openingCash - netChange) * 100) / 100, tiedOut:Math.abs(closingCash - openingCash - netChange) < 0.01 }
   }
 
   async dashboardSummary(asOfDate: string) {

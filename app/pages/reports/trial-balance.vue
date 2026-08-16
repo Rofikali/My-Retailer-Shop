@@ -1,48 +1,16 @@
 <script setup lang="ts">
-interface TrialBalanceRow { accountCode: string; accountName: string; debit: number; credit: number }
-interface TrialBalanceData { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number; difference: number; balanced: boolean }
-
-const { data } = await useFetch<TrialBalanceData>('/api/reports/trial-balance')
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
-}
+interface TrialBalanceRow { accountCode:string; accountName:string; ledgerGroup:string; debit:number; credit:number; difference:number; status:string; remarks:string }
+interface TrialBalanceData { asOfDate:string; rows:TrialBalanceRow[]; totalDebit:number; totalCredit:number; difference:number; balanced:boolean }
+const asOf = ref(new Date().toISOString().slice(0,10))
+const { data, refresh } = await useFetch<TrialBalanceData>('/api/reports/trial-balance', { query:{ asOf } })
+function fmt(value:number) { return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 }).format(value) }
+async function reload() { await refresh() }
 </script>
-
 <template>
-  <div>
-    <h1 style="font-size: 20px; margin-bottom: 20px;">Trial Balance</h1>
-    <table v-if="data" style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="text-align: left; border-bottom: 1px solid var(--color-border);">
-          <th style="padding: 8px;">Account</th>
-          <th style="padding: 8px; text-align: right;">Debit</th>
-          <th style="padding: 8px; text-align: right;">Credit</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="r in data.rows" :key="r.accountCode" style="border-bottom: 1px solid var(--color-border);">
-          <td style="padding: 8px;">{{ r.accountName }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ r.debit > 0 ? fmt(r.debit) : '—' }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ r.credit > 0 ? fmt(r.credit) : '—' }}</td>
-        </tr>
-        <tr style="font-weight: 700; border-top: 2px solid var(--color-text);">
-          <td style="padding: 8px;">Total</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ fmt(data.totalDebit) }}</td>
-          <td style="padding: 8px; text-align: right;" class="kpi-value">{{ fmt(data.totalCredit) }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <div
-      v-if="data"
-      class="card"
-      :style="{ marginTop: '16px', borderColor: data.balanced ? 'var(--color-accent)' : 'var(--color-danger)' }"
-    >
-      <strong>{{ data.balanced ? 'Balanced' : `Not balanced — difference ${fmt(data.difference)}` }}</strong>
-      <p v-if="!data.balanced" style="font-size: 12px; color: var(--color-text-muted); margin: 4px 0 0;">
-        Unlike the old spreadsheet, this should never happen if every write goes through LedgerService.
-        A nonzero difference here means some code path bypassed it — treat as a bug, not a data issue.
-      </p>
-    </div>
-  </div>
+  <main><div class="heading"><div><h1>Trial Balance</h1><p>Account balances as of the selected date, calculated from posted General Ledger entries.</p></div><NuxtLink class="link-button" to="/general-ledger">General Ledger</NuxtLink></div>
+    <section class="card filters"><label>As On Date<input v-model="asOf" type="date" @change="reload"></label><div class="basis">Basis: double-entry ledger only</div></section>
+    <div v-if="data" class="card table"><table><thead><tr><th>Account Code</th><th>Account Name</th><th>Ledger Group</th><th>Debit Balance (Rs)</th><th>Credit Balance (Rs)</th><th>Difference (Rs)</th><th>Status</th><th>Remarks</th></tr></thead><tbody><tr v-for="row in data.rows" :key="row.accountCode"><td>{{ row.accountCode }}</td><td>{{ row.accountName }}</td><td>{{ row.ledgerGroup }}</td><td>{{ row.debit ? fmt(row.debit) : '—' }}</td><td>{{ row.credit ? fmt(row.credit) : '—' }}</td><td>{{ fmt(row.difference) }}</td><td>{{ row.status }}</td><td>{{ row.remarks }}</td></tr><tr class="total"><td colspan="3">TOTAL</td><td>{{ fmt(data.totalDebit) }}</td><td>{{ fmt(data.totalCredit) }}</td><td>{{ fmt(data.difference) }}</td><td colspan="2"></td></tr></tbody></table></div>
+    <section v-if="data" class="card summary" :class="{ balanced:data.balanced }"><strong>{{ data.balanced ? 'Balanced' : 'Not Balanced' }}</strong><span>Difference (Total Dr − Total Cr): {{ fmt(data.difference) }}</span><small v-if="!data.balanced">Investigate the source posting in Ledger Audit. Do not adjust the report directly.</small></section>
+  </main>
 </template>
+<style scoped>main{max-width:100%}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}h1{font-size:20px;margin:0 0 4px}.heading p{margin:0;color:var(--color-text-muted);font-size:13px}.link-button{padding:8px 12px;background:var(--color-accent);color:#fff;border-radius:5px;text-decoration:none}.filters{display:flex;align-items:end;gap:24px;margin-top:16px}.filters label{font-size:12px;width:220px}.basis{color:var(--color-text-muted);font-size:13px;padding-bottom:8px}input{display:block;width:100%;padding:8px;margin-top:4px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface)}.table{overflow:auto;margin-top:16px}table{min-width:1250px;width:100%;border-collapse:collapse}th,td{padding:9px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--color-border)}th{font-size:12px}.total{font-weight:700;border-top:2px solid var(--color-text)}.summary{display:flex;align-items:center;gap:20px;margin-top:16px;border-color:var(--color-danger);color:var(--color-danger)}.summary.balanced{border-color:var(--color-accent);color:var(--color-accent)}.summary small{color:var(--color-text-muted)}</style>

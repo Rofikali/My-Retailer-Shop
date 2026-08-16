@@ -1,26 +1,16 @@
 <script setup lang="ts">
-interface CfData { openingCash: number; closingCash: number; netChange: number }
-const { data } = await useFetch<CfData>('/api/reports/cash-flow')
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
-}
+interface CashFlowLine { label:string; amount:number }
+interface CashFlowData { from:string; to:string; openingCash:number; closingCash:number; netChange:number; operating:{ rows:CashFlowLine[]; total:number }; financing:{ rows:CashFlowLine[]; total:number }; tieOutDifference:number; tiedOut:boolean }
+const from = ref(new Date().toISOString().slice(0,8) + '01')
+const to = ref(new Date().toISOString().slice(0,10))
+const { data, refresh } = await useFetch<CashFlowData>('/api/reports/cash-flow', { query:{ from, to } })
+function fmt(value:number) { return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 }).format(value) }
+async function reload() { await refresh() }
 </script>
-
 <template>
-  <div>
-    <h1 style="font-size: 20px; margin-bottom: 20px;">Cash Flow Statement</h1>
-    <div v-if="data" class="card" style="max-width: 420px;">
-      <div style="display:flex; justify-content:space-between; padding:4px 0;"><span>Opening Cash</span><span class="kpi-value">{{ fmt(data.openingCash) }}</span></div>
-      <div style="display:flex; justify-content:space-between; padding:4px 0;"><span>Net Change</span><span class="kpi-value">{{ fmt(data.netChange) }}</span></div>
-      <div style="display:flex; justify-content:space-between; padding:8px 0; font-weight:700; border-top:1px solid var(--color-border);">
-        <span>Closing Cash</span><span class="kpi-value">{{ fmt(data.closingCash) }}</span>
-      </div>
-    </div>
-    <p style="font-size:12px; color: var(--color-text-muted); max-width: 420px;">
-      This is a simplified opening/closing view. Extend <code>ReportService.cashFlow()</code> with an
-      Operating/Financing activity breakdown once transaction volume makes that split meaningful — see
-      the HLD doc for the target shape.
-    </p>
-  </div>
+  <main><div class="heading"><div><h1>Cash Flow Statement</h1><p>Receipts and payments calculated from posted Cash account movements.</p></div><NuxtLink class="link-button" to="/cashbook">Cash Book</NuxtLink></div>
+    <section class="card filters"><label>From Date<input v-model="from" type="date" @change="reload"></label><label>To Date<input v-model="to" type="date" @change="reload"></label><div class="basis">Basis: direct cash-account ledger movement</div></section>
+    <div v-if="data" class="statement"><section><h2>Operating Activities</h2><div v-for="row in data.operating.rows" :key="row.label" class="line"><span>{{ row.label }}</span><strong :class="{negative:row.amount < 0}">{{ fmt(row.amount) }}</strong></div><div class="total"><span>Net Cash From Operating Activities</span><strong>{{ fmt(data.operating.total) }}</strong></div></section><section><h2>Financing Activities</h2><div v-for="row in data.financing.rows" :key="row.label" class="line"><span>{{ row.label }}</span><strong :class="{negative:row.amount < 0}">{{ fmt(row.amount) }}</strong></div><div v-if="!data.financing.rows.length" class="empty-line">No financing activity</div><div class="total"><span>Net Cash From Financing Activities</span><strong>{{ fmt(data.financing.total) }}</strong></div></section><section class="summary"><div class="line"><span>Net Increase / (Decrease) In Cash</span><strong>{{ fmt(data.netChange) }}</strong></div><div class="line"><span>Add: Opening Cash Balance</span><strong>{{ fmt(data.openingCash) }}</strong></div><div class="closing"><span>Closing Cash</span><strong>{{ fmt(data.closingCash) }}</strong></div><div class="tie"><span>Per Cash Book (tie-out check)</span><strong>{{ fmt(data.closingCash) }}</strong><span>Tie-out Status</span><strong :class="data.tiedOut ? 'ok' : 'bad'">{{ data.tiedOut ? 'Tied Out - OK' : `Not Tied Out (${fmt(data.tieOutDifference)})` }}</strong></div></section></div>
+  </main>
 </template>
+<style scoped>main{max-width:900px}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}h1{font-size:20px;margin:0 0 4px}.heading p{margin:0;color:var(--color-text-muted);font-size:13px}.link-button{padding:8px 12px;background:var(--color-accent);color:#fff;border-radius:5px;text-decoration:none}.filters{display:flex;align-items:end;gap:16px;margin-top:16px}.filters label{font-size:12px;width:180px}input{display:block;width:100%;padding:8px;margin-top:4px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface)}.basis{margin-left:auto;color:var(--color-text-muted);font-size:12px;padding-bottom:8px}.statement{margin-top:22px}.statement section{margin-bottom:28px}h2{padding:8px 12px;background:#4e7f31;color:#fff;font-size:15px;text-transform:uppercase}.line,.total,.closing,.tie{display:flex;justify-content:space-between;gap:20px;padding:8px 12px}.line strong,.total strong,.closing strong,.tie strong{min-width:150px;text-align:right}.negative{color:var(--color-danger)}.total{border-top:2px solid var(--color-text);font-weight:700}.empty-line{padding:8px 12px;color:var(--color-text-muted)}.summary{margin-top:38px}.closing{margin-top:10px;background:#4e7f31;color:#fff;font-weight:700;font-size:16px}.tie{margin-top:12px;background:var(--color-surface)}.ok{color:var(--color-accent)}.bad{color:var(--color-danger)}</style>

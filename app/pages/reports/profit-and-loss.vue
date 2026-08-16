@@ -1,33 +1,16 @@
 <script setup lang="ts">
-interface Row { accountCode: string; accountName: string; amount: number }
-interface PnlData { revenue: Row[]; cogs: number; grossProfit: number; expenses: Row[]; totalOperatingExpenses: number; netProfit: number }
-
-const { data } = await useFetch<PnlData>('/api/reports/profit-and-loss')
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
-}
+interface Row { accountCode:string; accountName:string; amount:number }
+interface PnlData { from:string; to:string; revenue:Row[]; cogs:number; grossProfit:number; expenses:Row[]; totalOperatingExpenses:number; netProfit:number }
+const from = ref(new Date().toISOString().slice(0,8) + '01')
+const to = ref(new Date().toISOString().slice(0,10))
+const { data, refresh } = await useFetch<PnlData>('/api/reports/profit-and-loss', { query:{ from, to } })
+function fmt(value:number) { return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:2 }).format(value) }
+async function reload() { await refresh() }
 </script>
-
 <template>
-  <div>
-    <h1 style="font-size: 20px; margin-bottom: 20px;">Profit &amp; Loss Statement</h1>
-    <div v-if="data" class="card" style="max-width: 480px;">
-      <div v-for="r in data.revenue" :key="r.accountCode" style="display: flex; justify-content: space-between; padding: 4px 0;">
-        <span>{{ r.accountName }}</span><span class="kpi-value">{{ fmt(r.amount) }}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 4px 0; color: var(--color-text-muted);">
-        <span>Less: Cost of Goods Sold</span><span class="kpi-value">{{ fmt(data.cogs) }}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 8px 0; font-weight: 700; border-top: 1px solid var(--color-border);">
-        <span>Gross Profit</span><span class="kpi-value">{{ fmt(data.grossProfit) }}</span>
-      </div>
-      <div v-for="r in data.expenses" :key="r.accountCode" style="display: flex; justify-content: space-between; padding: 4px 0; color: var(--color-text-muted);">
-        <span>{{ r.accountName }}</span><span class="kpi-value">{{ fmt(r.amount) }}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; padding: 8px 0; font-weight: 700; border-top: 2px solid var(--color-text); color: var(--color-accent);">
-        <span>Net Profit</span><span class="kpi-value">{{ fmt(data.netProfit) }}</span>
-      </div>
-    </div>
-  </div>
+  <main><div class="heading"><div><h1>Trading and Profit &amp; Loss Account</h1><p>Revenue, cost of goods sold, and operating expenses calculated from posted ledger entries.</p></div><NuxtLink class="link-button" to="/reports/trial-balance">Trial Balance</NuxtLink></div>
+    <section class="card filters"><label>From Date<input v-model="from" type="date" @change="reload"></label><label>To Date<input v-model="to" type="date" @change="reload"></label><span class="basis">Period: {{ from }} to {{ to }}</span></section>
+    <div v-if="data" class="statement"><section><h2>Trading Account</h2><div v-for="row in data.revenue" :key="row.accountCode" class="line"><span>{{ row.accountName }} (Net Amount)</span><strong>{{ fmt(row.amount) }}</strong></div><div class="line muted"><span>Less: Cost of Goods Sold</span><strong>{{ fmt(data.cogs) }}</strong></div><div class="total"><span>Gross Profit</span><strong>{{ fmt(data.grossProfit) }}</strong></div></section><section><h2>Operating Expenses (from Expense Register)</h2><div v-for="row in data.expenses" :key="row.accountCode" class="line"><span>{{ row.accountName }}</span><strong>{{ fmt(row.amount) }}</strong></div><div v-if="!data.expenses.length" class="empty">No operating expenses for this period.</div><div class="total"><span>Total Operating Expenses</span><strong>{{ fmt(data.totalOperatingExpenses) }}</strong></div></section><div class="net"><span>Net Profit / (Loss)</span><strong>{{ fmt(data.netProfit) }}</strong></div><p class="note">Cost of Goods Sold and revenue are derived from posted sales and ledger entries. This report is read-only and cannot be edited directly.</p></div>
+  </main>
 </template>
+<style scoped>main{max-width:900px}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}h1{font-size:20px;margin:0 0 4px}.heading p{margin:0;color:var(--color-text-muted);font-size:13px}.link-button{padding:8px 12px;background:var(--color-accent);color:#fff;border-radius:5px;text-decoration:none}.filters{display:flex;align-items:end;gap:16px;margin-top:16px}.filters label{font-size:12px;width:180px}.basis{margin-left:auto;color:var(--color-text-muted);font-size:12px;padding-bottom:8px}input{display:block;width:100%;padding:8px;margin-top:4px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface)}.statement{margin-top:22px}.statement section{margin-bottom:28px}h2{padding:8px 12px;background:#4e7f31;color:#fff;font-size:15px;text-transform:uppercase}.line,.total,.net{display:flex;justify-content:space-between;gap:20px;padding:8px 12px}.line strong,.total strong,.net strong{min-width:150px;text-align:right}.muted{color:var(--color-text-muted)}.total{border-top:2px solid var(--color-text);font-weight:700}.net{margin-top:38px;background:#4e7f31;color:#fff;font-weight:700;font-size:17px}.note,.empty{color:var(--color-text-muted);font-size:12px}.note{margin-top:20px;font-style:italic}</style>
