@@ -41,6 +41,15 @@ async function waitForPageHydration(page: import('@playwright/test').Page) {
 }
 
 test.describe('Critical flows', () => {
+  test('login page exposes secure metadata and accessible credentials', async ({ page }) => {
+    await page.goto('/login')
+    await expect(page).toHaveTitle('Sign in | RetailShop ERP')
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Securely sign in to RetailShop ERP.')
+    await expect(page.getByLabel('Email')).toHaveAttribute('autocomplete', 'username')
+    await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'current-password')
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+  })
+
   test('login redirects to the dashboard and shows KPI cards', async ({ page }) => {
     await login(page)
     await expect(page.getByText('Total Sales Revenue')).toBeVisible()

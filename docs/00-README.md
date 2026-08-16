@@ -22,6 +22,9 @@ from day one with no real usage data to validate the design against.
 9. `09-DevOps-Deployment.md`
 10. `10-Security-and-Data-Integrity.md`
 11. `11-Scaling-and-Multi-Tenant-Path.md`
+12. `14-Implementation-Roadmap.md`
+13. `15-Testing-and-Release-Runbook.md`
+14. `16-Engineering-Architecture-and-Workflow.md` â€” authoritative HLD/LLD, SOLID, patterns, and operating workflow
 
 ## Non-negotiables carried over from the Excel rebuild
 
