@@ -64,6 +64,13 @@
       "when": 1786793052646,
       "tag": "0008_sharp_chamber",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786794000000,
+      "tag": "0009_expand_business_profile",
+      "breakpoints": true
     }
   ]
 }

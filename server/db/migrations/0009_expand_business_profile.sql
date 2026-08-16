@@ -1,0 +1,10 @@
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "phone" text;
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "email" text;
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "city" text;
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "state" text;
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "pin_code" text;
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "currency" text NOT NULL DEFAULT 'INR';
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "timezone" text NOT NULL DEFAULT 'Asia/Kolkata';
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "invoice_prefix" text NOT NULL DEFAULT 'INV-';
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "purchase_prefix" text NOT NULL DEFAULT 'PUR-';
+ALTER TABLE "business_profile" ADD COLUMN IF NOT EXISTS "default_warehouse" text NOT NULL DEFAULT 'Main';

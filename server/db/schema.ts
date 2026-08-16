@@ -36,7 +36,17 @@ export const businessProfile = pgTable('business_profile', {
   financialYearEnd: date('financial_year_end').notNull(),
   gstRegistered: boolean('gst_registered').notNull().default(false),
   gstin: text('gstin'),
-  address: text('address')
+  address: text('address'),
+  phone: text('phone'),
+  email: text('email'),
+  city: text('city'),
+  state: text('state'),
+  pinCode: text('pin_code'),
+  currency: text('currency').notNull().default('INR'),
+  timezone: text('timezone').notNull().default('Asia/Kolkata'),
+  invoicePrefix: text('invoice_prefix').notNull().default('INV-'),
+  purchasePrefix: text('purchase_prefix').notNull().default('PUR-'),
+  defaultWarehouse: text('default_warehouse').notNull().default('Main')
 })
 
 // ---------------------------------------------------------------------------

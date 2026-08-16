@@ -63,9 +63,6 @@ function formatAmount(amount: string) {
   return Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function applyFilters() {
-  refresh()
-}
 </script>
 
 <template>
@@ -116,11 +113,11 @@ function applyFilters() {
         This is a read-only audit view. Only an owner can post a correcting reversal.
       </div>
 
-      <form class="card audit-filters" @submit.prevent="applyFilters">
+      <div class="card audit-filters">
         <label>From Date<input v-model="filters.from" type="date" required></label>
         <label>To Date<input v-model="filters.to" type="date" required></label>
-        <button type="submit">Apply Dates</button>
-      </form>
+        <span class="filter-status">Updates automatically</span>
+      </div>
 
       <div class="card" style="overflow-x: auto; padding: 0;">
         <table style="width: 100%; min-width: 920px; border-collapse: collapse;">
@@ -163,6 +160,6 @@ function applyFilters() {
 .audit-filters { display: flex; align-items: end; gap: 12px; }
 .audit-filters label { display: grid; gap: 4px; color: var(--color-text-muted); font-size: 12px; }
 .audit-filters input { padding: 8px; border: 1px solid var(--color-border); border-radius: 6px; }
-.audit-filters button { padding: 9px 14px; border: 1px solid var(--color-accent); border-radius: 6px; background: var(--color-accent); color: white; cursor: pointer; }
+.filter-status { align-self: center; color: var(--color-text-muted); font-size: 12px; }
 @media (max-width: 560px) { .audit-filters { align-items: stretch; flex-direction: column; } }
 </style>

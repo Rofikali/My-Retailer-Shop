@@ -27,7 +27,17 @@ export class BusinessProfileService {
       financialYearEnd: input.financialYearEnd,
       gstRegistered: input.gstRegistered,
       gstin: input.gstRegistered ? input.gstin : null,
-      address: input.address
+      address: input.address,
+      phone: input.phone,
+      email: input.email || null,
+      city: input.city,
+      state: input.state,
+      pinCode: input.pinCode,
+      currency: input.currency,
+      timezone: input.timezone,
+      invoicePrefix: input.invoicePrefix,
+      purchasePrefix: input.purchasePrefix,
+      defaultWarehouse: input.defaultWarehouse
     })
   }
 }
