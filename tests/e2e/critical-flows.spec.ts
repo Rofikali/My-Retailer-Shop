@@ -43,7 +43,7 @@ async function waitForPageHydration(page: import('@playwright/test').Page) {
 test.describe('Critical flows', () => {
   test('login redirects to the dashboard and shows KPI cards', async ({ page }) => {
     await login(page)
-    await expect(page.getByText('Total Revenue')).toBeVisible()
+    await expect(page.getByText('Total Sales Revenue')).toBeVisible()
     await expect(page.getByText('Cash Balance')).toBeVisible()
   })
 
@@ -72,8 +72,10 @@ test.describe('Critical flows', () => {
 
     const routes = [
       '/', '/cashbook', '/sales', '/purchases', '/inventory', '/expenses',
-      '/customers', '/suppliers', '/reports/trial-balance', '/reports/profit-and-loss',
-      '/reports/balance-sheet', '/reports/cash-flow', '/admin/users', '/admin/data-quality'
+      '/customers', '/customer-ledger', '/suppliers', '/supplier-ledger', '/journal',
+      '/general-ledger', '/reports/trial-balance', '/reports/profit-and-loss',
+      '/reports/balance-sheet', '/reports/cash-flow', '/reports/data-quality',
+      '/admin/ledger-entries', '/admin/users', '/admin/settings'
     ]
 
     for (const route of routes) {

@@ -3,6 +3,7 @@ import { CashTxnInput } from '../../server/utils/validation/cashTxn'
 import { SaleInput } from '../../server/utils/validation/sale'
 import { PurchaseInput } from '../../server/utils/validation/purchase'
 import { InventoryAdjustmentInput } from '../../server/utils/validation/inventoryAdjustment'
+import { BusinessProfileInput } from '../../server/utils/validation/businessProfile'
 
 describe('CashTxnInput', () => {
   it('rejects a transaction with both receipt and payment set', () => {
@@ -90,5 +91,27 @@ describe('InventoryAdjustmentInput', () => {
       adjustmentDate: '2026-08-01', reason: 'correction', quantity: -3
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('BusinessProfileInput', () => {
+  const validProfile = {
+    businessName: 'RetailShop', financialYearStart: '2026-04-01', financialYearEnd: '2027-03-31',
+    gstRegistered: false, currency: 'INR', timezone: 'Asia/Kolkata', invoicePrefix: 'INV-',
+    purchasePrefix: 'PUR-', defaultWarehouse: 'Main'
+  }
+
+  it('accepts a complete operational profile', () => {
+    expect(BusinessProfileInput.safeParse({ ...validProfile, email: 'owner@example.com', city: 'Kolkata' }).success).toBe(true)
+  })
+
+  it('requires GSTIN when GST is enabled', () => {
+    const result = BusinessProfileInput.safeParse({ ...validProfile, gstRegistered: true })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects unsupported currencies and unsafe document prefixes', () => {
+    expect(BusinessProfileInput.safeParse({ ...validProfile, currency: 'XYZ' }).success).toBe(false)
+    expect(BusinessProfileInput.safeParse({ ...validProfile, invoicePrefix: 'INV/2026' }).success).toBe(false)
   })
 })
