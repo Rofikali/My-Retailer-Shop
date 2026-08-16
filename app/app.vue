@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { user, logout } = useAuth()
 const route = useRoute()
+const { scrollIntoView } = useScrollIntoView()
 const isSidebarCollapsed = ref(false)
+const sidebarNav = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   isSidebarCollapsed.value = localStorage.getItem('retailshop.sidebar.collapsed') === 'true'
@@ -9,7 +11,16 @@ onMounted(() => {
 
 watch(isSidebarCollapsed, (collapsed) => {
   localStorage.setItem('retailshop.sidebar.collapsed', String(collapsed))
+  scrollActiveNav()
 })
+
+const scrollActiveNav = async () => {
+  await nextTick()
+  scrollIntoView(sidebarNav.value?.querySelector<HTMLElement>('.nav-active') || null, 'auto')
+}
+
+watch(() => route.fullPath, scrollActiveNav, { flush: 'post' })
+onMounted(scrollActiveNav)
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
@@ -28,6 +39,7 @@ const navItems = [
   { to: '/reports/trial-balance', label: 'Reports' },
   { to: '/reports/cash-flow', label: 'Cash Flow Statement' },
   { to: '/reports/profit-and-loss', label: 'Profit & Loss' },
+  { to: '/reports/data-quality', label: 'Data Quality Review' },
   { to: '/admin/ledger-entries', label: 'Ledger Audit' },
   { to: '/admin/users', label: 'Admin' },
   { to: '/admin/settings', label: 'Settings' }
@@ -53,7 +65,7 @@ const navItems = [
         </button>
       </div>
 
-      <nav class="sidebar__nav" aria-label="Primary navigation">
+      <nav ref="sidebarNav" class="sidebar__nav" aria-label="Primary navigation">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"
@@ -91,7 +103,11 @@ const navItems = [
 .sidebar__toggle, .sidebar__logout { border: 0; background: transparent; color: var(--color-text); cursor: pointer; }
 .sidebar__toggle { display: grid; width: 32px; height: 32px; padding: 0; border-radius: 6px; place-items: center; font-size: 18px; }
 .sidebar__toggle:hover, .sidebar__logout:hover { background: var(--color-accent-soft); color: var(--color-accent); }
-.sidebar__nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar__nav { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 4px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--color-border) transparent; scrollbar-gutter: stable; scrollbar-width: thin; }
+.sidebar__nav::-webkit-scrollbar { width: 8px; }
+.sidebar__nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar__nav::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: var(--color-border); background-clip: padding-box; }
+.sidebar__nav::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); background-clip: padding-box; }
 .sidebar__link { display: flex; min-height: 36px; align-items: center; padding: 8px 10px; border-radius: 6px; color: var(--color-text); text-decoration: none; }
 .sidebar--collapsed .sidebar__link { justify-content: center; padding: 8px; }
 .sidebar__initial { font-size: 12px; font-weight: 700; }

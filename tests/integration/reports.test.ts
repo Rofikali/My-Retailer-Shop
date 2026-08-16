@@ -148,4 +148,16 @@ describe('Reports reconcile against a known transaction set', () => {
     expect(dashboard.sundryCreditors).toBe(1000)
     expect(dashboard.closingStockValue).toBe(500)
   })
+
+  it('Data quality review reports scope and ledger integrity', async () => {
+    const reportService = new ReportService(testDb)
+    const review = await reportService.dataQualityReview()
+
+    expect(review.scope.customers).toBe(1)
+    expect(review.scope.suppliers).toBe(1)
+    expect(review.scope.products).toBe(1)
+    expect(review.scope.ledgerEntries).toBeGreaterThan(0)
+    expect(review.items.find((item) => item.area === 'General Ledger')?.status).toBe('pass')
+    expect(review.items.find((item) => item.area === 'Party Ledger')?.status).toBe('pass')
+  })
 })

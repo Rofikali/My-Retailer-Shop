@@ -1,7 +1,7 @@
 import { db, type Database } from '../db/client'
 import { LedgerService } from './ledger.service'
 import { and, eq, gte, lte } from 'drizzle-orm'
-import { accounts, ledgerEntries } from '../db/schema'
+import { accounts, businessProfile, customers, expenses, ledgerEntries, partyLedgerEvents, products, purchases, sales, suppliers } from '../db/schema'
 
 interface ReportRow {
   accountCode: string
@@ -149,6 +149,72 @@ export class ReportService {
       sundryCreditors: bs.liabilities.creditors,
       closingStockValue: bs.assets.inventory
     }
+  }
+
+  async dataQualityReview() {
+    const [profiles, customerRows, supplierRows, productRows, ledgerRows, partyRows, saleRows, purchaseRows, expenseRows] = await Promise.all([
+      this.database.select().from(businessProfile),
+      this.database.select().from(customers),
+      this.database.select().from(suppliers),
+      this.database.select().from(products),
+      this.database.select({ referenceId: ledgerEntries.referenceId, debit: ledgerEntries.debit, credit: ledgerEntries.credit }).from(ledgerEntries),
+      this.database.select({ customerId: partyLedgerEvents.customerId, supplierId: partyLedgerEvents.supplierId }).from(partyLedgerEvents),
+      this.database.select({ createdBy: sales.createdBy }).from(sales),
+      this.database.select({ createdBy: purchases.createdBy }).from(purchases),
+      this.database.select({ createdBy: expenses.createdBy }).from(expenses)
+    ])
+
+    type ReviewStatus = 'pass' | 'warning' | 'action'
+    type ReviewItem = { area: string; title: string; status: ReviewStatus; detail: string; recommendation: string }
+    const items: ReviewItem[] = []
+    const add = (item: ReviewItem) => items.push(item)
+    const hasPlaceholder = (value: string | null | undefined) => !value || /^\s*\[.*\]\s*$/.test(value) || /your shop|owner name/i.test(value)
+    const duplicateNames = (rows: Array<{ name: string }>) => {
+      const counts = new Map<string, number>()
+      for (const row of rows) {
+        const key = row.name.trim().toLowerCase()
+        counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      return [...counts.values()].filter((count) => count > 1).reduce((sum, count) => sum + count, 0)
+    }
+    const missing = (values: Array<string | null | undefined>) => values.filter((value) => hasPlaceholder(value)).length
+
+    const profile = profiles[0]
+    const profileIssues = !profile || hasPlaceholder(profile.businessName) || hasPlaceholder(profile.address)
+    add({ area: 'Business identity', title: 'Business profile is complete', status: profileIssues ? 'action' : 'pass', detail: !profile ? 'No business profile has been configured.' : profileIssues ? 'Business name or address is still missing or contains a placeholder.' : 'Business name, financial year, and address are configured.', recommendation: 'Complete the business profile before relying on printed or exported reports.' })
+    const gstIssue = Boolean(profile?.gstRegistered && hasPlaceholder(profile.gstin))
+    add({ area: 'GST', title: 'GST configuration is consistent', status: gstIssue ? 'action' : 'pass', detail: gstIssue ? 'GST is enabled but the GSTIN is missing.' : profile?.gstRegistered ? 'GST is enabled with a GSTIN.' : 'GST is marked as not registered.', recommendation: gstIssue ? 'Add the registered GSTIN or disable GST registration in Settings.' : 'Review this setting with your accountant before production use.' })
+
+    const duplicateCustomers = duplicateNames(customerRows)
+    const incompleteCustomers = missing(customerRows.flatMap((row) => [row.phone, row.address, row.city, row.state, row.pinCode]))
+    add({ area: 'Customer Master', title: 'Customer master data is unique and usable', status: duplicateCustomers || incompleteCustomers ? 'warning' : 'pass', detail: `${customerRows.length} customer(s); ${duplicateCustomers} duplicate-name row(s) and ${incompleteCustomers} missing core field(s).`, recommendation: 'Merge duplicate parties and complete contact/address data; never create a second master for a repeat customer.' })
+
+    const duplicateSuppliers = duplicateNames(supplierRows)
+    const incompleteSuppliers = missing(supplierRows.flatMap((row) => [row.phone, row.address, row.city, row.state, row.pinCode]))
+    add({ area: 'Supplier Master', title: 'Supplier master data is unique and usable', status: duplicateSuppliers || incompleteSuppliers ? 'warning' : 'pass', detail: `${supplierRows.length} supplier(s); ${duplicateSuppliers} duplicate-name row(s) and ${incompleteSuppliers} missing core field(s).`, recommendation: 'Keep one supplier master per legal party and complete contact/address data.' })
+
+    const incompleteProducts = productRows.filter((row) => missing([row.category, row.unit, row.costPrice, row.sellingPrice])).length
+    add({ area: 'Product Catalog', title: 'Products have pricing and classification', status: incompleteProducts ? 'warning' : 'pass', detail: `${productRows.length} product(s); ${incompleteProducts} product(s) are missing category, unit, cost, or selling price.`, recommendation: 'Complete product defaults before posting sales, purchases, or stock adjustments.' })
+
+    const journalGroups = new Map<string, { debit: number; credit: number }>()
+    for (const row of ledgerRows) {
+      const key = row.referenceId || 'unreferenced'
+      const current = journalGroups.get(key) || { debit: 0, credit: 0 }
+      current.debit += Number(row.debit)
+      current.credit += Number(row.credit)
+      journalGroups.set(key, current)
+    }
+    const unbalancedPostings = [...journalGroups.values()].filter((group) => Math.abs(group.debit - group.credit) >= 0.01).length
+    add({ area: 'General Ledger', title: 'Posted entries remain balanced', status: unbalancedPostings ? 'action' : 'pass', detail: `${ledgerRows.length} ledger row(s); ${unbalancedPostings} posting group(s) are out of balance.`, recommendation: 'Stop release if any posting is unbalanced; correct through reversal and reposting, never direct edits.' })
+
+    const partyRowsWithoutParty = partyRows.filter((row) => !row.customerId && !row.supplierId).length
+    add({ area: 'Party Ledger', title: 'Party transactions link to a master', status: partyRowsWithoutParty ? 'action' : 'pass', detail: `${partyRows.length} party transaction(s); ${partyRowsWithoutParty} row(s) have no customer or supplier link.`, recommendation: 'Link every party transaction to exactly one master so balances and statements reconcile.' })
+
+    const missingAuditOwner = [...saleRows, ...purchaseRows, ...expenseRows].filter((row) => !row.createdBy).length
+    add({ area: 'Audit trail', title: 'Transactions identify the operator', status: missingAuditOwner ? 'warning' : 'pass', detail: `${missingAuditOwner} sale, purchase, or expense row(s) do not identify the user who entered them.`, recommendation: 'Require authenticated users and preserve entered-by and approved-by details for production posting.' })
+
+    const counts = { pass: items.filter((item) => item.status === 'pass').length, warning: items.filter((item) => item.status === 'warning').length, action: items.filter((item) => item.status === 'action').length }
+    return { reviewedAt: new Date().toISOString(), counts, readyForProduction: counts.action === 0, scope: { customers: customerRows.length, suppliers: supplierRows.length, products: productRows.length, ledgerEntries: ledgerRows.length, partyLedgerEvents: partyRows.length }, notes: ['Customer and Supplier Masters are static identity records; ledgers are the dynamic transaction history.', 'Financial reports are calculated from the append-only General Ledger and should be reviewed before release.', 'A warning is a data-quality improvement; an action item blocks production reliance until resolved.'], items }
   }
 }
 
