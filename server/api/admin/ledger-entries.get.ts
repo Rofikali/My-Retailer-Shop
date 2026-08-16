@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { requireUser, requireRole } from '../../utils/auth-guard'
 import { db } from '../../db/client'
 import { ledgerEntries, accounts, users } from '../../db/schema'
@@ -14,7 +14,14 @@ export default defineEventHandler(async (event) => {
   requireRole(user, ['owner', 'accountant_readonly'])
 
   const query = getQuery(event)
-  const limit = query.limit ? Number(query.limit) : 100
+  const today = new Date().toISOString().slice(0, 10)
+  const from = typeof query.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(query.from) ? query.from : `${today.slice(0, 4)}-01-01`
+  const to = typeof query.to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(query.to) ? query.to : today
+  if (from > to) {
+    throw createError({ statusCode: 400, statusMessage: 'From date cannot be after To date.' })
+  }
+  const requestedLimit = query.limit ? Number(query.limit) : 100
+  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 500) : 100
 
   return db
     .select({
@@ -33,6 +40,7 @@ export default defineEventHandler(async (event) => {
     .from(ledgerEntries)
     .innerJoin(accounts, eq(ledgerEntries.accountId, accounts.id))
     .leftJoin(users, eq(ledgerEntries.createdBy, users.id))
+    .where(and(gte(ledgerEntries.entryDate, from), lte(ledgerEntries.entryDate, to)))
     .orderBy(desc(ledgerEntries.createdAt))
     .limit(limit)
 })

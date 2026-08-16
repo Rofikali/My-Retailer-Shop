@@ -5,5 +5,6 @@ export default defineEventHandler(async (event) => {
   await requireUser(event)
   const query = getQuery(event)
   const asOf = (query.asOf as string) || new Date().toISOString().slice(0, 10)
-  return reportService.dashboardSummary(asOf)
+  const from = (query.from as string) || `${asOf.slice(0, 4)}-01-01`
+  return reportService.dashboardSummary(asOf, from)
 })

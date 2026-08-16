@@ -14,7 +14,11 @@ interface LedgerEntry {
 }
 
 const { user } = useAuth()
-const { data: entries, refresh, error } = await useFetch<LedgerEntry[]>('/api/admin/ledger-entries')
+const today = new Date().toISOString().slice(0, 10)
+const filters = reactive({ from: `${today.slice(0, 4)}-01-01`, to: today })
+const { data: entries, refresh, error } = await useFetch<LedgerEntry[]>('/api/admin/ledger-entries', {
+  query: { from: computed(() => filters.from), to: computed(() => filters.to) }
+})
 const isOwner = computed(() => user.value?.role === 'owner')
 const showReversalForm = ref(false)
 const submitting = ref(false)
@@ -57,6 +61,10 @@ async function reverse() {
 
 function formatAmount(amount: string) {
   return Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function applyFilters() {
+  refresh()
 }
 </script>
 
@@ -108,6 +116,12 @@ function formatAmount(amount: string) {
         This is a read-only audit view. Only an owner can post a correcting reversal.
       </div>
 
+      <form class="card audit-filters" @submit.prevent="applyFilters">
+        <label>From Date<input v-model="filters.from" type="date" required></label>
+        <label>To Date<input v-model="filters.to" type="date" required></label>
+        <button type="submit">Apply Dates</button>
+      </form>
+
       <div class="card" style="overflow-x: auto; padding: 0;">
         <table style="width: 100%; min-width: 920px; border-collapse: collapse;">
           <thead>
@@ -144,3 +158,11 @@ function formatAmount(amount: string) {
     </template>
   </div>
 </template>
+
+<style scoped>
+.audit-filters { display: flex; align-items: end; gap: 12px; }
+.audit-filters label { display: grid; gap: 4px; color: var(--color-text-muted); font-size: 12px; }
+.audit-filters input { padding: 8px; border: 1px solid var(--color-border); border-radius: 6px; }
+.audit-filters button { padding: 9px 14px; border: 1px solid var(--color-accent); border-radius: 6px; background: var(--color-accent); color: white; cursor: pointer; }
+@media (max-width: 560px) { .audit-filters { align-items: stretch; flex-direction: column; } }
+</style>

@@ -1,5 +1,6 @@
 import { db, type Database } from '../db/client'
 import { LedgerService } from './ledger.service'
+import { InventoryRepo } from '../repositories/inventory.repo'
 import { and, eq, gte, lte } from 'drizzle-orm'
 import { accounts, businessProfile, customers, expenses, ledgerEntries, partyLedgerEvents, products, purchases, sales, suppliers } from '../db/schema'
 
@@ -20,9 +21,11 @@ interface ReportRow {
  */
 export class ReportService {
   private ledger: LedgerService
+  private inventory: InventoryRepo
 
   constructor(private database: Database = db) {
     this.ledger = new LedgerService(database)
+    this.inventory = new InventoryRepo(database)
   }
 
   async trialBalance(asOfDate: string) {
@@ -134,20 +137,37 @@ export class ReportService {
     return { from, to, openingCash, closingCash, netChange, operating:{ rows:operatingRows, total:Math.round(netOperating * 100) / 100 }, financing:{ rows:financingRows, total:Math.round(netFinancing * 100) / 100 }, tieOutDifference:Math.round((closingCash - openingCash - netChange) * 100) / 100, tiedOut:Math.abs(closingCash - openingCash - netChange) < 0.01 }
   }
 
-  async dashboardSummary(asOfDate: string) {
-    const [pnl, bs] = await Promise.all([
-      this.profitAndLoss(`${asOfDate.slice(0, 4)}-01-01`, asOfDate),
-      this.balanceSheet(asOfDate)
+  async dashboardSummary(asOfDate: string, fromDate = `${asOfDate.slice(0, 4)}-01-01`) {
+    const [pnl, bs, profileRows, inventoryRows] = await Promise.all([
+      this.profitAndLoss(fromDate, asOfDate),
+      this.balanceSheet(asOfDate),
+      this.database.select({ businessName: businessProfile.businessName }).from(businessProfile),
+      this.inventory.listWithStock()
     ])
 
+    const expenseBreakdown = pnl.expenses.map((row) => ({ label: row.accountName, amount: row.amount })).filter((row) => row.amount > 0)
+    const itemsNeedingReorder = inventoryRows.filter((row) => Number(row.currentStock) <= Number(row.reorderLevel)).length
+
     return {
+      businessName: profileRows[0]?.businessName ?? 'RetailShop ERP',
+      from: fromDate,
+      to: asOfDate,
       totalRevenue: pnl.revenue.reduce((s, r) => s + r.amount, 0),
       grossProfit: pnl.grossProfit,
       netProfit: pnl.netProfit,
       cashBalance: bs.assets.cash,
       sundryDebtors: bs.assets.debtors,
       sundryCreditors: bs.liabilities.creditors,
-      closingStockValue: bs.assets.inventory
+      closingStockValue: bs.assets.inventory,
+      itemsNeedingReorder,
+      totalOperatingExpenses: pnl.totalOperatingExpenses,
+      expenseBreakdown,
+      revenueCostNet: [
+        { label: 'Sales Revenue', amount: pnl.revenue.reduce((s, r) => s + r.amount, 0) },
+        { label: 'COGS', amount: pnl.cogs },
+        { label: 'Operating Expenses', amount: pnl.totalOperatingExpenses },
+        { label: 'Net Profit', amount: pnl.netProfit }
+      ]
     }
   }
 
