@@ -119,19 +119,3 @@ jobs:
           tags: retailshop-erp:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy-production:
-    name: Deploy Netlify production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [unit-and-typecheck, integration, build-and-e2e, container-build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: production
-    steps:
-      - name: Trigger Netlify build after all gates pass
-        env:
-          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
-        run: |
-          test -n "$NETLIFY_BUILD_HOOK_URL"
-          curl --fail --silent --show-error --retry 3 -X POST -d '{}' "$NETLIFY_BUILD_HOOK_URL"

@@ -1,6 +1,6 @@
 # CI/CD and Main Branch Protection
 
-The deployment pipeline is fail-closed: production deployment is impossible unless unit tests, typecheck, integration tests, production build, Playwright E2E tests, and the production Docker build all pass.
+The CI pipeline is fail-closed: unit tests, typecheck, integration tests, production build, Playwright E2E tests, and the production Docker build must pass before a pull request can merge when GitHub branch protection is enabled. Netlify deploys `main` directly.
 
 ## Required GitHub settings
 
@@ -17,20 +17,12 @@ Configure these settings in **Repository → Settings → Branches → Add branc
 
 GitHub does not store branch-protection settings in repository files. Configure them in repository settings or through the GitHub API by an administrator.
 
-## Production environment
-
-Create a GitHub Environment named `production`, add required reviewers, and add `NETLIFY_BUILD_HOOK_URL` as an environment secret. Restrict deployment branches to `main` and never add database passwords to workflow logs.
-
-The `Deploy Netlify production` job only runs after a successful push to `main`, all required jobs pass, and production approval succeeds. If the build hook is missing, the job fails rather than silently skipping deployment.
-
 ## Developer workflow
 
 ```text
 feature branch → pull request → all CI gates → review → merge main
                                                      ↓
-                                      production approval → Render deploy
-                                                     ↓
-                                      migration → health check → traffic
+                                            Netlify production deploy
 ```
 
 Local equivalents:

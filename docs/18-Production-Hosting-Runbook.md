@@ -2,7 +2,7 @@
 
 This project is a stateful Nuxt application: it serves SSR pages, owns authentication, and connects directly to PostgreSQL. Deploy it as a Docker web service with managed PostgreSQL. Do not deploy it as a static site.
 
-Netlify is configured for the hosted deployment through `netlify.toml`. It runs Nuxt SSR through Netlify Functions. Configure `DATABASE_URL` and `SESSION_SECRET` in Netlify’s encrypted environment settings. Normal Git-push builds are ignored; the GitHub CI pipeline triggers the Netlify build hook only after every required quality gate succeeds.
+Netlify is configured for direct deployment through `netlify.toml`. It runs Nuxt SSR through Netlify Functions. Configure `DATABASE_URL` and `SESSION_SECRET` in Netlify’s encrypted environment settings. Netlify automatically builds and publishes every push to the configured production branch, `main`.
 
 ## Recommended topology
 
@@ -55,4 +55,4 @@ Never run `db:seed` against production. Never put migrations in the container st
 
 Render Free plus Neon Free can be used for a temporary demo or staging environment. It is not an acceptable permanent production setup because free services can sleep or pause and free database plans may not provide the backup, retention, and availability guarantees required for business records.
 
-Netlify Free plus Neon Free is another valid demo option. Netlify’s current Free plan has a hard monthly credit limit and pauses projects after the limit is reached; it does not provide an SLA. Create a Netlify build hook for the `main` branch and store it as the GitHub `production` environment secret `NETLIFY_BUILD_HOOK_URL`. [Netlify pricing](https://www.netlify.com/pricing/)
+Netlify Free plus Neon Free is another valid demo option. Netlify’s current Free plan has a hard monthly credit limit and pauses projects after the limit is reached; it does not provide an SLA. [Netlify pricing](https://www.netlify.com/pricing/)

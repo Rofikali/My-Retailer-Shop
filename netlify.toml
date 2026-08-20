@@ -1,6 +1,5 @@
 [build]
-  command = "pnpm run db:migrate:release && pnpm run build"
-  ignore = "[ -n \"$INCOMING_HOOK_URL\" ] && exit 1 || exit 0"
+  command = "pnpm run build"
 
 [build.environment]
   NODE_VERSION = "22"
