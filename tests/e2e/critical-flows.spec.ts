@@ -23,10 +23,7 @@ if (!OWNER_EMAIL || !OWNER_PASSWORD) {
 
 async function login(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.waitForFunction(() => {
-    const form = document.querySelector('form') as { __vueParentComponent?: { isMounted?: boolean } } | null
-    return form?.__vueParentComponent?.isMounted === true
-  })
+  await expect(page.getByLabel('Email')).toBeVisible()
   await page.getByLabel('Email').fill(OWNER_EMAIL)
   await page.getByLabel('Password').fill(OWNER_PASSWORD)
   await page.getByRole('button', { name: /sign in/i }).click()
@@ -34,10 +31,7 @@ async function login(page: import('@playwright/test').Page) {
 }
 
 async function waitForPageHydration(page: import('@playwright/test').Page) {
-  await page.waitForFunction(() => {
-    const heading = document.querySelector('main h1') as { __vueParentComponent?: { isMounted?: boolean } } | null
-    return heading?.__vueParentComponent?.isMounted === true
-  })
+  await expect(page.locator('main h1')).toBeVisible()
 }
 
 test.describe('Critical flows', () => {
