@@ -42,3 +42,4 @@ impossible instead of relying on discipline:
 - **No feature is built until the ERD supports it.** UI-first development is what produced a spreadsheet
   with three stacked, half-broken templates per sheet.
 - [18 — Production Hosting Runbook](18-Production-Hosting-Runbook.md)
+- [19 — CI/CD and Main Branch Protection](19-CI-CD-Branch-Protection.md)

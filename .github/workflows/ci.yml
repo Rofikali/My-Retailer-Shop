@@ -5,21 +5,36 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: retailshop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PNPM_VERSION: 11.18.0
+  NODE_VERSION: 22
+
 jobs:
   unit-and-typecheck:
+    name: Unit and typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: 11 }
+        with: { version: ${{ env.PNPM_VERSION }} }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: 'pnpm' }
+        with: { node-version: ${{ env.NODE_VERSION }}, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm run test
 
   integration:
+    name: Integration tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
@@ -39,15 +54,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: 11 }
+        with: { version: ${{ env.PNPM_VERSION }} }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: 'pnpm' }
+        with: { node-version: ${{ env.NODE_VERSION }}, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm run test:integration
 
   build-and-e2e:
-    runs-on: ubuntu-latest
+    name: Production build and E2E
     needs: [unit-and-typecheck, integration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
@@ -71,9 +88,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: 11 }
+        with: { version: ${{ env.PNPM_VERSION }} }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: 'pnpm' }
+        with: { node-version: ${{ env.NODE_VERSION }}, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm run db:migrate
       - run: pnpm run db:seed
@@ -81,19 +98,35 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run test:e2e
 
-  deploy-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [unit-and-typecheck, integration, build-and-e2e]
+  container-build:
+    name: Production container build
+    needs: [build-and-e2e]
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: retailshop-erp:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-production:
+    name: Deploy production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [unit-and-typecheck, integration, build-and-e2e, container-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
     steps:
       - name: Trigger Render deployment after all gates pass
-        run: |
-          test -n "$RENDER_DEPLOY_HOOK_URL"
-          curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-
-  # E2E runs against the production build and seeded CI database above.
-  # (see docs/08-Testing-Strategy.md §4 and playwright.config.ts). Add a `build` +
-  # `preview` + `playwright test` job here once the app is further along; running it
-  # against an unfinished scaffold on every PR would be noise, not signal.
+        run: |
+          test -n "$RENDER_DEPLOY_HOOK_URL"
+          curl --fail --silent --show-error --retry 3 -X POST "$RENDER_DEPLOY_HOOK_URL"
