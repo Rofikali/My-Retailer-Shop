@@ -43,3 +43,4 @@ impossible instead of relying on discipline:
   with three stacked, half-broken templates per sheet.
 - [18 — Production Hosting Runbook](18-Production-Hosting-Runbook.md)
 - [19 — CI/CD and Main Branch Protection](19-CI-CD-Branch-Protection.md)
+- [20 — Netlify Gated Deployment](20-Netlify-Gated-Deployment.md)

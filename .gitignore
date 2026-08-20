@@ -1,6 +1,7 @@
 node_modules/
 .nuxt/
 .output/
+.netlify/
 .env
 .env.*
 !.env.example

@@ -19,9 +19,9 @@ GitHub does not store branch-protection settings in repository files. Configure 
 
 ## Production environment
 
-Create a GitHub Environment named `production`, add required reviewers, and add `RENDER_DEPLOY_HOOK_URL` as an environment secret. Restrict deployment branches to `main` and never add database passwords to workflow logs.
+Create a GitHub Environment named `production`, add required reviewers, and add `NETLIFY_BUILD_HOOK_URL` as an environment secret. Restrict deployment branches to `main` and never add database passwords to workflow logs.
 
-The `deploy-production` job only runs after a successful push to `main`, all required jobs pass, and production approval succeeds. If the deploy hook is missing, the job fails rather than silently skipping deployment.
+The `Deploy Netlify production` job only runs after a successful push to `main`, all required jobs pass, and production approval succeeds. If the build hook is missing, the job fails rather than silently skipping deployment.
 
 ## Developer workflow
 

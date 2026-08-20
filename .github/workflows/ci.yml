@@ -121,7 +121,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-production:
-    name: Deploy production
+    name: Deploy Netlify production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [unit-and-typecheck, integration, build-and-e2e, container-build]
     runs-on: ubuntu-latest
@@ -129,9 +129,9 @@ jobs:
     environment:
       name: production
     steps:
-      - name: Trigger Render deployment after all gates pass
+      - name: Trigger Netlify build after all gates pass
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          NETLIFY_BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
         run: |
-          test -n "$RENDER_DEPLOY_HOOK_URL"
-          curl --fail --silent --show-error --retry 3 -X POST "$RENDER_DEPLOY_HOOK_URL"
+          test -n "$NETLIFY_BUILD_HOOK_URL"
+          curl --fail --silent --show-error --retry 3 -X POST -d '{}' "$NETLIFY_BUILD_HOOK_URL"
