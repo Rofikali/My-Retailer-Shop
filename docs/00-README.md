@@ -41,3 +41,4 @@ impossible instead of relying on discipline:
   the class of bug that caused the Sales Register and Cash Book to disagree.
 - **No feature is built until the ERD supports it.** UI-first development is what produced a spreadsheet
   with three stacked, half-broken templates per sheet.
+- [18 — Production Hosting Runbook](18-Production-Hosting-Runbook.md)

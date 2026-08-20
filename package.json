@@ -11,6 +11,7 @@
     "typecheck": "nuxi typecheck",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
+    "db:migrate:release": "node server/db/migrate.mjs",
     "db:migrate:test": "tsx server/db/migrateTest.ts",
     "db:reset-owner-password": "tsx server/db/resetOwnerPassword.ts",
     "db:seed": "tsx server/db/seed.ts",

@@ -18,13 +18,16 @@ RUN pnpm run build
 
 # --- runtime: only what's needed to run the built server ---
 FROM node:22-alpine AS runtime
+RUN corepack enable && corepack prepare pnpm@11.18.0 --activate
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 COPY --from=build /app/.output ./.output
+COPY server/db/migrations ./server/db/migrations
+COPY server/db/migrate.mjs ./server/db/migrate.mjs
 USER app
 EXPOSE 3000
-# Migrations are run as an explicit, reviewed CI/CD step (docs/09-DevOps-Deployment.md
-# "CI/CD") - never auto-migrate on container start, which can run half-applied
-# migrations against a database still serving live traffic during rolling deploys.
+# Migrations run as an explicit pre-deploy step, never during container startup.
 CMD ["node", ".output/server/index.mjs"]

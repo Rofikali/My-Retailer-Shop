@@ -1,0 +1,16 @@
+[build]
+  command = "pnpm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "11.18.0"
+  PNPM_FLAGS = "--shamefully-hoist"
+  NITRO_PRESET = "netlify"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
