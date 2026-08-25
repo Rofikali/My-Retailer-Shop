@@ -52,7 +52,23 @@ export class CustomersService {
     if (!customer) return null
     const balance = await this.repo.getOutstandingBalance(id)
     const ledger = await this.repo.getLedger(id)
-    return { ...customer, outstandingBalance: balance, ledger }
+    const amendments = await this.partyLedger.getLatestAmendments(ledger.map((entry) => entry.id))
+    const presentedLedger = ledger.map((entry) => {
+      const amendment = amendments.get(entry.id)
+      if (!amendment) return entry
+      return {
+        ...entry,
+        particulars: amendment.particulars,
+        paymentMode: amendment.paymentMode,
+        referenceNo: amendment.referenceNo,
+        dueDate: amendment.dueDate,
+        remarks: amendment.remarks,
+        status: 'amended',
+        amendmentReason: amendment.reason,
+        amendedAt: amendment.createdAt
+      }
+    })
+    return { ...customer, outstandingBalance: balance, ledger: presentedLedger }
   }
 
   async update(id: string, input: CustomerUpdateInputType) {

@@ -1,6 +1,7 @@
 import type { Database } from '../db/client'
 import { PartyLedgerRepo } from '../repositories/party-ledger.repo'
 import { randomUUID } from 'node:crypto'
+import type { PartyLedgerAmendmentInputType } from '../utils/validation/partyLedgerAmendment'
 
 export class PartyLedgerService {
   private repo: PartyLedgerRepo
@@ -11,6 +12,28 @@ export class PartyLedgerService {
 
   post(tx: Database, input: typeof import('../db/schema').partyLedgerEvents.$inferInsert) {
     return this.repo.insert(tx, input)
+  }
+
+  async amendMetadata(tx: Database, entryId: string, input: PartyLedgerAmendmentInputType, userId: string) {
+    const entry = await this.repo.findById(entryId)
+    if (!entry) throw createError({ statusCode: 404, statusMessage: 'Ledger entry not found' })
+    if (entry.status !== 'posted') {
+      throw createError({ statusCode: 400, statusMessage: 'Only posted ledger metadata can be amended' })
+    }
+    return this.repo.insertAmendment(tx, {
+      partyLedgerEventId: entry.id,
+      particulars: input.particulars,
+      paymentMode: input.paymentMode,
+      referenceNo: input.referenceNo,
+      dueDate: input.dueDate,
+      remarks: input.remarks,
+      reason: input.reason,
+      amendedBy: userId
+    })
+  }
+
+  getLatestAmendments(entryIds: string[]) {
+    return this.repo.getLatestAmendments(entryIds)
   }
 
   async reverseOpeningBalance(tx: Database, originalReferenceId: string, entryDate: string, reason: string, userId: string) {

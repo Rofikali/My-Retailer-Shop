@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
-import { customers, ledgerEntries } from '../../server/db/schema'
+import { customers, ledgerEntries, partyLedgerEvents } from '../../server/db/schema'
 import { CustomersService } from '../../server/services/customers.service'
 import { LedgerService } from '../../server/services/ledger.service'
 import { PartyLedgerService } from '../../server/services/party-ledger.service'
@@ -69,5 +69,25 @@ describe('CustomersService.create', () => {
     await expect(testDb.transaction((tx) => ledger.reverse(tx as typeof testDb, customer.id, {
       entryDate: '2026-08-15', description: 'Reversal: duplicate attempt', createdBy: userId
     }))).rejects.toThrow('already been reversed')
+  })
+
+  it('amends operational metadata without changing the posted customer balance or original event', async () => {
+    const customer = await customersService.create(
+      { name: 'Amendment Test', openingBalance: 500, status: 'active' },
+      userId
+    )
+    const [original] = await testDb.select().from(partyLedgerEvents).where(eq(partyLedgerEvents.customerId, customer.id))
+
+    await testDb.transaction((tx) => new PartyLedgerService(testDb).amendMetadata(tx as typeof testDb, original.id, {
+      particulars: 'Opening balance confirmed after reconciliation', paymentMode: null, referenceNo: 'BANK-REF-01', dueDate: null,
+      remarks: 'Supporting statement checked', reason: 'Corrected reference after bank reconciliation review'
+    }, userId))
+
+    const [storedOriginal] = await testDb.select().from(partyLedgerEvents).where(eq(partyLedgerEvents.id, original.id))
+    expect(storedOriginal).toMatchObject({ particulars: original.particulars, debit: '500.00', credit: '0.00' })
+
+    const detail = await customersService.getWithBalance(customer.id)
+    expect(detail?.outstandingBalance).toBe(500)
+    expect(detail?.ledger[0]).toMatchObject({ particulars: 'Opening balance confirmed after reconciliation', referenceNo: 'BANK-REF-01', status: 'amended' })
   })
 })

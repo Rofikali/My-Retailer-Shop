@@ -5,6 +5,7 @@ import { PurchaseInput } from '../../server/utils/validation/purchase'
 import { InventoryAdjustmentInput } from '../../server/utils/validation/inventoryAdjustment'
 import { BusinessProfileInput } from '../../server/utils/validation/businessProfile'
 import { UpdateUserInput } from '../../server/utils/validation/user'
+import { PartyLedgerAmendmentInput } from '../../server/utils/validation/partyLedgerAmendment'
 
 describe('CashTxnInput', () => {
   it('rejects a transaction with both receipt and payment set', () => {
@@ -125,5 +126,17 @@ describe('UpdateUserInput', () => {
   it('enforces the production password policy on password changes', () => {
     expect(UpdateUserInput.safeParse({ password: 'short' }).success).toBe(false)
     expect(UpdateUserInput.safeParse({ password: 'AValidPassword123' }).success).toBe(true)
+  })
+})
+
+describe('PartyLedgerAmendmentInput', () => {
+  it('requires a meaningful reason while allowing nullable operational metadata', () => {
+    expect(PartyLedgerAmendmentInput.safeParse({
+      particulars: 'Corrected payment narration', paymentMode: null, referenceNo: null, dueDate: null, remarks: null,
+      reason: 'Corrected source reference after bank reconciliation'
+    }).success).toBe(true)
+    expect(PartyLedgerAmendmentInput.safeParse({
+      particulars: 'Corrected payment narration', paymentMode: 'cash', referenceNo: null, dueDate: null, remarks: null, reason: 'Too short'
+    }).success).toBe(false)
   })
 })
