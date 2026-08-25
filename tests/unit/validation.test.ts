@@ -4,6 +4,7 @@ import { SaleInput } from '../../server/utils/validation/sale'
 import { PurchaseInput } from '../../server/utils/validation/purchase'
 import { InventoryAdjustmentInput } from '../../server/utils/validation/inventoryAdjustment'
 import { BusinessProfileInput } from '../../server/utils/validation/businessProfile'
+import { UpdateUserInput } from '../../server/utils/validation/user'
 
 describe('CashTxnInput', () => {
   it('rejects a transaction with both receipt and payment set', () => {
@@ -113,5 +114,16 @@ describe('BusinessProfileInput', () => {
   it('rejects unsupported currencies and unsafe document prefixes', () => {
     expect(BusinessProfileInput.safeParse({ ...validProfile, currency: 'XYZ' }).success).toBe(false)
     expect(BusinessProfileInput.safeParse({ ...validProfile, invoicePrefix: 'INV/2026' }).success).toBe(false)
+  })
+})
+
+describe('UpdateUserInput', () => {
+  it('requires at least one change', () => {
+    expect(UpdateUserInput.safeParse({}).success).toBe(false)
+  })
+
+  it('enforces the production password policy on password changes', () => {
+    expect(UpdateUserInput.safeParse({ password: 'short' }).success).toBe(false)
+    expect(UpdateUserInput.safeParse({ password: 'AValidPassword123' }).success).toBe(true)
   })
 })

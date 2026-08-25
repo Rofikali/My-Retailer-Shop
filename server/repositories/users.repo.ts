@@ -1,4 +1,4 @@
-import { eq, asc } from 'drizzle-orm'
+import { and, asc, count, eq } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import { users } from '../db/schema'
 
@@ -17,6 +17,19 @@ export class UsersRepo {
     return row ?? null
   }
 
+  async findById(id: string) {
+    const [row] = await this.db.select().from(users).where(eq(users.id, id))
+    return row ?? null
+  }
+
+  async countActiveOwners() {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(users)
+      .where(and(eq(users.role, 'owner'), eq(users.isActive, true)))
+    return Number(row?.value ?? 0)
+  }
+
   async insert(values: typeof users.$inferInsert) {
     const [row] = await this.db.insert(users).values(values).returning({
       id: users.id, name: users.name, email: users.email, role: users.role, isActive: users.isActive
@@ -29,5 +42,12 @@ export class UsersRepo {
       id: users.id, name: users.name, email: users.email, role: users.role, isActive: users.isActive
     })
     return row
+  }
+
+  async update(id: string, values: Partial<typeof users.$inferInsert>) {
+    const [row] = await this.db.update(users).set(values).where(eq(users.id, id)).returning({
+      id: users.id, name: users.name, email: users.email, role: users.role, isActive: users.isActive
+    })
+    return row ?? null
   }
 }

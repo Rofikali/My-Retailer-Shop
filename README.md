@@ -130,6 +130,9 @@ deliberately **not** run automatically on container start (see the comment in `D
 `.github/workflows/ci.yml` runs typecheck, unit and integration tests, a production build, and Chromium E2E
 tests on every pull request. Configure the deployment platform to probe `/api/health`.
 
+For Vercel deployment, database migration, required environment variables, and secure owner-account recovery,
+follow [`docs/21-Vercel-Production-Deployment.md`](docs/21-Vercel-Production-Deployment.md).
+
 ## Project layout
 
 See `docs/04-LLD.md §1` for the full explanation. Short version:

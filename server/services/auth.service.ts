@@ -23,7 +23,7 @@ export class AuthService {
 
   async getUserById(id: string) {
     const [user] = await db.select().from(users).where(eq(users.id, id))
-    if (!user) return null
+    if (!user || !user.isActive) return null
     return { id: user.id, name: user.name, email: user.email, role: user.role }
   }
 }

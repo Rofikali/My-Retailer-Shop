@@ -2,6 +2,7 @@ node_modules/
 .nuxt/
 .output/
 .netlify/
+.vercel/
 .env
 .env.*
 !.env.example

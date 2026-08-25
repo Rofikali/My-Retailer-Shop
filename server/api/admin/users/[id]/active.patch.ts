@@ -15,5 +15,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid input' })
   }
 
-  return usersService.setActive(id, parsed.data.isActive)
+  return usersService.setActive(id, parsed.data.isActive, user.id)
 })
