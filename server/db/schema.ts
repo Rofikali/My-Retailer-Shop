@@ -166,6 +166,23 @@ export const partyLedgerEvents = pgTable('party_ledger_events', {
   reversalIdx: index('party_ledger_events_reverses_entry_idx').on(table.reversesEntryId)
 }))
 
+// Amendments preserve the original posted party-ledger row. The current ledger view
+// overlays the latest amendment while the complete correction history remains available.
+export const partyLedgerAmendments = pgTable('party_ledger_amendments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  partyLedgerEventId: uuid('party_ledger_event_id').notNull().references(() => partyLedgerEvents.id, { onDelete: 'restrict' }),
+  particulars: text('particulars'),
+  paymentMode: paymentModeEnum('payment_mode'),
+  referenceNo: text('reference_no'),
+  dueDate: date('due_date'),
+  remarks: text('remarks'),
+  reason: text('reason').notNull(),
+  amendedBy: uuid('amended_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  eventCreatedIdx: index('party_ledger_amendments_event_created_idx').on(table.partyLedgerEventId, table.createdAt)
+}))
+
 // ---------------------------------------------------------------------------
 // Inventory
 // ---------------------------------------------------------------------------
