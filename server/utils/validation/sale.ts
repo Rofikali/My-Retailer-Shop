@@ -15,12 +15,23 @@ export const SaleInput = z.object({
   saleDate: z.string().date(),
   customerId: z.string().uuid().optional(), // absent = walk-in
   paymentMode: z.enum(['cash', 'upi', 'credit']),
+  dueDate: z.string().date().optional(),
   referenceNo: z.string().trim().max(100).optional(),
   remarks: z.string().trim().max(1_000).optional(),
   items: z.array(SaleLineInput).min(1, 'At least one line item is required')
-}).refine((data) => data.paymentMode !== 'credit' || !!data.customerId, {
-  message: 'A customer must be selected for a credit sale (so the receivable has somewhere to post)',
-  path: ['customerId']
+}).superRefine((data, context) => {
+  if (data.paymentMode === 'credit' && !data.customerId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'A customer must be selected for a credit sale', path: ['customerId'] })
+  }
+  if (data.paymentMode === 'credit' && !data.dueDate) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'A due date is required for a credit sale', path: ['dueDate'] })
+  }
+  if (data.dueDate && data.dueDate < data.saleDate) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Due date cannot be before the sale date', path: ['dueDate'] })
+  }
+  if (data.paymentMode !== 'credit' && data.dueDate) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Due date is only used for credit sales', path: ['dueDate'] })
+  }
 })
 
 export type SaleInputType = z.infer<typeof SaleInput>
