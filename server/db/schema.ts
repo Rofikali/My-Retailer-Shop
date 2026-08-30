@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check, index, foreignKey
+  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check, index, foreignKey, unique
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -13,7 +13,7 @@ export const referenceTypeEnum = pgEnum('reference_type', [
 ])
 export const movementTypeEnum = pgEnum('movement_type', ['opening', 'purchase', 'sale', 'damage', 'adjustment'])
 export const paymentModeEnum = pgEnum('payment_mode', ['cash', 'upi', 'credit'])
-export const saleStatusEnum = pgEnum('sale_status', ['paid', 'pending'])
+export const saleStatusEnum = pgEnum('sale_status', ['paid', 'pending', 'partial', 'overdue'])
 export const cashCategoryEnum = pgEnum('cash_category', ['capital', 'sales', 'expense', 'drawings', 'purchase', 'other'])
 
 // ---------------------------------------------------------------------------
@@ -222,12 +222,28 @@ export const sales = pgTable('sales', {
   saleDate: date('sale_date').notNull(),
   customerId: uuid('customer_id').references(() => customers.id), // null = walk-in
   paymentMode: paymentModeEnum('payment_mode').notNull(),
+  dueDate: date('due_date'),
   status: saleStatusEnum('status').notNull(),
   referenceNo: text('reference_no'),
   remarks: text('remarks'),
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
+
+// A receipt can settle one or more credit-sale invoices.  Amounts are immutable;
+// the current invoice settlement status is derived from these allocations.
+export const customerReceiptAllocations = pgTable('customer_receipt_allocations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  receiptEventId: uuid('receipt_event_id').notNull().references(() => partyLedgerEvents.id, { onDelete: 'restrict' }),
+  saleId: uuid('sale_id').notNull().references(() => sales.id, { onDelete: 'restrict' }),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  receiptSaleUnique: unique('customer_receipt_allocations_receipt_sale_unique').on(table.receiptEventId, table.saleId),
+  saleIdx: index('customer_receipt_allocations_sale_idx').on(table.saleId),
+  receiptIdx: index('customer_receipt_allocations_receipt_idx').on(table.receiptEventId)
+}))
 
 export const saleItems = pgTable('sale_items', {
   id: uuid('id').primaryKey().defaultRandom(),

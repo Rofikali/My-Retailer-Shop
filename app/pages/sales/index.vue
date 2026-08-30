@@ -10,6 +10,7 @@ interface Sale {
   unitPrice: string
   discount: string
   paymentMode: string
+  dueDate: string | null
   status: string
   customerName: string | null
   salespersonName: string | null
@@ -46,6 +47,7 @@ const formError = ref('')
 
 const saleDate = ref(new Date().toISOString().slice(0, 10))
 const paymentMode = ref<'cash' | 'upi' | 'credit'>('cash')
+const dueDate = ref('')
 const customerId = ref('')
 const referenceNo = ref('')
 const remarks = ref('')
@@ -87,6 +89,7 @@ async function submit() {
         saleDate: saleDate.value,
         customerId: customerId.value || undefined,
         paymentMode: paymentMode.value,
+        dueDate: dueDate.value || undefined,
         referenceNo: referenceNo.value || undefined,
         remarks: remarks.value || undefined,
         items: lines.value.map((l) => ({
@@ -101,6 +104,7 @@ async function submit() {
     showForm.value = false
     lines.value = [{ productId: '', quantity: 1, costPrice: 0, sellingPrice: 0, discount: 0 }]
     customerId.value = ''
+    dueDate.value = ''
     referenceNo.value = ''
     remarks.value = ''
     await refresh()
@@ -151,6 +155,10 @@ async function submit() {
         <div>
           <label for="sale-remarks" style="display:block; font-size:12px; margin-bottom:4px;">Remarks</label>
           <input id="sale-remarks" v-model="remarks" maxlength="1000" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
+        </div>
+        <div v-if="paymentMode === 'credit'">
+          <label style="display:block; font-size:12px; margin-bottom:4px;">Due Date</label>
+          <input v-model="dueDate" type="date" :min="saleDate" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;">
         </div>
         <div>
           <label style="display:block; font-size:12px; margin-bottom:4px;">
@@ -220,7 +228,7 @@ async function submit() {
           <th style="padding: 8px;">Date</th><th style="padding: 8px;">Invoice No</th><th style="padding: 8px;">Customer</th>
           <th style="padding: 8px;">Product</th><th style="padding: 8px;">Category</th><th style="padding: 8px;">Qty</th>
           <th style="padding: 8px;">Cost Price (Rs)</th><th style="padding: 8px;">Unit Price (Rs)</th><th style="padding: 8px;">Discount (Rs)</th>
-          <th style="padding: 8px;">Net Amount (Rs)</th><th style="padding: 8px;">Payment Mode</th><th style="padding: 8px;">Status</th>
+          <th style="padding: 8px;">Net Amount (Rs)</th><th style="padding: 8px;">Payment Mode</th><th style="padding: 8px;">Due Date</th><th style="padding: 8px;">Status</th>
           <th style="padding: 8px;">Salesperson</th><th style="padding: 8px;">Reference</th><th style="padding: 8px;">Remarks</th><th style="padding: 8px;">Profit (Rs)</th>
         </tr>
       </thead>
@@ -237,6 +245,7 @@ async function submit() {
           <td style="padding: 8px;">{{ fmt(s.discount) }}</td>
           <td style="padding: 8px;">{{ fmt(Number(s.quantity) * Number(s.unitPrice) - Number(s.discount)) }}</td>
           <td style="padding: 8px;">{{ s.paymentMode }}</td>
+          <td style="padding: 8px;">{{ s.dueDate || '—' }}</td>
           <td style="padding: 8px;">{{ s.status }}</td>
           <td style="padding: 8px;">{{ s.salespersonName || 'Unknown' }}</td>
           <td style="padding: 8px;">{{ s.referenceNo || '—' }}</td>

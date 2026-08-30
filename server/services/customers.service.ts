@@ -2,17 +2,20 @@ import { db, type Database } from '../db/client'
 import { CustomersRepo } from '../repositories/customers.repo'
 import { LedgerService } from './ledger.service'
 import { PartyLedgerService } from './party-ledger.service'
+import { CustomerReceivablesService } from './customer-receivables.service'
 import type { CustomerInputType, CustomerUpdateInputType } from '../utils/validation/customer'
 
 export class CustomersService {
   private repo: CustomersRepo
   private ledger: LedgerService
   private partyLedger: PartyLedgerService
+  private receivables: CustomerReceivablesService
 
   constructor(private database: Database = db) {
     this.repo = new CustomersRepo(database)
     this.ledger = new LedgerService(database)
     this.partyLedger = new PartyLedgerService(database)
+    this.receivables = new CustomerReceivablesService(database)
   }
 
   list(search?: string) {
@@ -52,10 +55,12 @@ export class CustomersService {
     if (!customer) return null
     const balance = await this.repo.getOutstandingBalance(id)
     const ledger = await this.repo.getLedger(id)
+    const statuses = await this.receivables.getStatuses(ledger.filter((entry) => entry.referenceType === 'sale').map((entry) => entry.referenceId))
     const amendments = await this.partyLedger.getLatestAmendments(ledger.map((entry) => entry.id))
     const presentedLedger = ledger.map((entry) => {
       const amendment = amendments.get(entry.id)
-      if (!amendment) return entry
+      const status = entry.referenceType === 'sale' ? statuses.get(entry.referenceId) ?? entry.status : entry.status
+      if (!amendment) return { ...entry, status }
       return {
         ...entry,
         particulars: amendment.particulars,
@@ -63,7 +68,8 @@ export class CustomersService {
         referenceNo: amendment.referenceNo,
         dueDate: amendment.dueDate,
         remarks: amendment.remarks,
-        status: 'amended',
+        status,
+        amendmentStatus: 'amended',
         amendmentReason: amendment.reason,
         amendedAt: amendment.createdAt
       }

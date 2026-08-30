@@ -4,6 +4,7 @@ import { requireUser } from '../../utils/auth-guard'
 import { LedgerService } from '../../services/ledger.service'
 import { PartyLedgerService } from '../../services/party-ledger.service'
 import { PartyLedgerPaymentInput } from '../../utils/validation/partyLedgerPayment'
+import { CustomerReceivablesService } from '../../services/customer-receivables.service'
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
@@ -19,17 +20,20 @@ export default defineEventHandler(async (event) => {
     const dbTx = tx as unknown as typeof db
     const ledger = new LedgerService(db)
     const partyLedger = new PartyLedgerService(db)
+    const receivables = new CustomerReceivablesService(db)
 
     if (input.partyType === 'customer') {
       await ledger.post(dbTx, [
         { accountCode: 'CASH', debit: input.amount },
         { accountCode: 'DEBTORS', credit: input.amount, customerId: input.partyId }
       ], { entryDate: input.entryDate, description, referenceType: 'journal', referenceId, createdBy: user.id })
-      await partyLedger.post(dbTx, {
+      const receipt = await partyLedger.post(dbTx, {
         entryDate: input.entryDate, voucherNo, customerId: input.partyId, particulars: description,
         debit: '0', credit: String(input.amount), paymentMode: input.paymentMode, referenceType: 'journal', referenceId,
         referenceNo: input.referenceNo || null, status: 'posted', remarks: input.remarks || null, createdBy: user.id, approvedBy: user.id
       })
+      if (!receipt) throw createError({ statusCode: 500, statusMessage: 'Receipt ledger event was not created' })
+      await receivables.allocateReceipt(dbTx, receipt.id, input.partyId, input.amount, input.allocations, user.id)
     } else {
       await ledger.post(dbTx, [
         { accountCode: 'CREDITORS', debit: input.amount, supplierId: input.partyId },
