@@ -25,6 +25,8 @@ from day one with no real usage data to validate the design against.
 12. `14-Implementation-Roadmap.md`
 13. `15-Testing-and-Release-Runbook.md`
 14. `16-Engineering-Architecture-and-Workflow.md` â€” authoritative HLD/LLD, SOLID, patterns, and operating workflow
+15. `22-Party-Ledger-Amendments.md` â€” append-only correction rules for customer and supplier ledgers
+16. `24-Customer-Ledger-Operating-Guide.md` â€” receipt entry, full field dictionary, amendment controls, and CA review checklist
 
 ## Non-negotiables carried over from the Excel rebuild
 
