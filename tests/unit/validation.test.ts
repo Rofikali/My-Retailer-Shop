@@ -6,6 +6,7 @@ import { InventoryAdjustmentInput } from '../../server/utils/validation/inventor
 import { BusinessProfileInput } from '../../server/utils/validation/businessProfile'
 import { UpdateUserInput } from '../../server/utils/validation/user'
 import { PartyLedgerAmendmentInput } from '../../server/utils/validation/partyLedgerAmendment'
+import { PartyLedgerPaymentInput } from '../../server/utils/validation/partyLedgerPayment'
 
 describe('CashTxnInput', () => {
   it('rejects a transaction with both receipt and payment set', () => {
@@ -49,6 +50,13 @@ describe('SaleInput', () => {
       saleDate: '2026-08-01', paymentMode: 'cash', items: [validItem]
     })
     expect(result.success).toBe(true)
+  })
+
+  it('requires a due date for credit and rejects a date before the sale', () => {
+    const creditSale = { saleDate: '2026-08-01', customerId: '00000000-0000-0000-0000-000000000001', paymentMode: 'credit', items: [validItem] }
+    expect(SaleInput.safeParse(creditSale).success).toBe(false)
+    expect(SaleInput.safeParse({ ...creditSale, dueDate: '2026-07-31' }).success).toBe(false)
+    expect(SaleInput.safeParse({ ...creditSale, dueDate: '2026-08-31' }).success).toBe(true)
   })
 
   it('rejects a sale with zero line items', () => {
@@ -138,5 +146,15 @@ describe('PartyLedgerAmendmentInput', () => {
     expect(PartyLedgerAmendmentInput.safeParse({
       particulars: 'Corrected payment narration', paymentMode: 'cash', referenceNo: null, dueDate: null, remarks: null, reason: 'Too short'
     }).success).toBe(false)
+  })
+})
+
+describe('PartyLedgerPaymentInput', () => {
+  const saleId = '00000000-0000-0000-0000-000000000001'
+
+  it('accepts a receipt only when allocations equal the received amount', () => {
+    const payment = { partyType: 'customer', partyId: '00000000-0000-0000-0000-000000000002', entryDate: '2026-08-01', amount: 100, paymentMode: 'upi', allocations: [{ saleId, amount: 100 }] }
+    expect(PartyLedgerPaymentInput.safeParse(payment).success).toBe(true)
+    expect(PartyLedgerPaymentInput.safeParse({ ...payment, allocations: [{ saleId, amount: 90 }] }).success).toBe(false)
   })
 })

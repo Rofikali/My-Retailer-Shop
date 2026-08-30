@@ -86,6 +86,8 @@ export class CustomersRepo {
         referenceNo: partyLedgerEvents.referenceNo,
         dueDate: partyLedgerEvents.dueDate,
         status: partyLedgerEvents.status,
+        referenceType: partyLedgerEvents.referenceType,
+        referenceId: partyLedgerEvents.referenceId,
         salespersonName: salesperson.name,
         remarks: partyLedgerEvents.remarks,
         enteredByName: enteredBy.name,

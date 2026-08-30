@@ -3,6 +3,8 @@ import { SalesRepo } from '../repositories/sales.repo'
 import { LedgerService } from './ledger.service'
 import { InventoryService } from './inventory.service'
 import { PartyLedgerService } from './party-ledger.service'
+import { CustomersRepo } from '../repositories/customers.repo'
+import { CustomerReceivablesService } from './customer-receivables.service'
 import type { SaleInputType } from '../utils/validation/sale'
 
 /**
@@ -18,16 +20,22 @@ export class SalesService {
   private ledger: LedgerService
   private inventory: InventoryService
   private partyLedger: PartyLedgerService
+  private customers: CustomersRepo
+  private receivables: CustomerReceivablesService
 
   constructor(private database: Database) {
     this.repo = new SalesRepo(database)
     this.ledger = new LedgerService(database)
     this.inventory = new InventoryService()
     this.partyLedger = new PartyLedgerService(database)
+    this.customers = new CustomersRepo(database)
+    this.receivables = new CustomerReceivablesService(database)
   }
 
-  list() {
-    return this.repo.list()
+  async list() {
+    const rows = await this.repo.list()
+    const statuses = await this.receivables.getStatuses(rows.map((row) => row.id))
+    return rows.map((row) => ({ ...row, status: statuses.get(row.id) ?? row.status }))
   }
 
   getById(id: string) {
@@ -40,6 +48,17 @@ export class SalesService {
     const status = input.paymentMode === 'credit' ? 'pending' : 'paid'
     const invoiceNo = await this.repo.nextInvoiceNo()
 
+    if (input.paymentMode === 'credit' && input.customerId) {
+      const customer = await this.customers.getById(input.customerId)
+      if (!customer) throw createError({ statusCode: 404, statusMessage: 'Customer not found' })
+      if (customer.creditLimit !== null) {
+        const outstanding = await this.customers.getOutstandingBalance(input.customerId)
+        if (outstanding + totalSale > Number(customer.creditLimit) + 0.004) {
+          throw createError({ statusCode: 400, statusMessage: 'Credit sale exceeds the customer credit limit' })
+        }
+      }
+    }
+
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
 
@@ -49,6 +68,7 @@ export class SalesService {
         saleDate: input.saleDate,
         customerId: input.customerId,
         paymentMode: input.paymentMode,
+        dueDate: input.dueDate || null,
         status,
         referenceNo: input.referenceNo || null,
         remarks: input.remarks || null,
@@ -101,7 +121,7 @@ export class SalesService {
         await this.partyLedger.post(dbTx, {
           entryDate: input.saleDate, voucherNo: `SLS-${invoiceNo}`, invoiceNo, customerId: input.customerId,
           particulars: `Sale ${invoiceNo}`, debit: String(totalSale), credit: String(input.paymentMode === 'credit' ? 0 : totalSale),
-          paymentMode: input.paymentMode, referenceType: 'sale', referenceId: sale.id, referenceNo: input.referenceNo || null,
+          paymentMode: input.paymentMode, referenceType: 'sale', referenceId: sale.id, referenceNo: input.referenceNo || null, dueDate: input.dueDate || null,
           status, salespersonId: userId, remarks: input.remarks || null, createdBy: userId, approvedBy: userId
         })
       }

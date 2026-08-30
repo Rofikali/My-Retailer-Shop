@@ -28,7 +28,7 @@ describe('SalesService.recordSale', () => {
 
   it('posts to DEBTORS (not CASH) for a credit sale, and the four ledger lines balance', async () => {
     await salesService.recordSale(
-      { saleDate: '2026-08-01', customerId, paymentMode: 'credit', items: [{ productId, quantity: 2, costPrice: 10, sellingPrice: 15 }] },
+      { saleDate: '2026-08-01', customerId, paymentMode: 'credit', dueDate: '2026-08-31', items: [{ productId, quantity: 2, costPrice: 10, sellingPrice: 15 }] },
       userId
     )
 
