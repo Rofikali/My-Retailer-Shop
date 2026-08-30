@@ -1,54 +1,45 @@
 <script setup lang="ts">
-interface Party { id: string; code: string; name: string }
+const destination = ref<'customer' | 'supplier'>('customer')
 
-const partyType = ref<'customer' | 'supplier'>('customer')
-const { data: customers } = await useFetch<Party[]>('/api/customers')
-const { data: suppliers } = await useFetch<Party[]>('/api/suppliers')
-const submitting = ref(false)
-const message = ref('')
-const errorMessage = ref('')
-const form = reactive({ partyId: '', entryDate: new Date().toISOString().slice(0, 10), amount: 0, paymentMode: 'cash', referenceNo: '', remarks: '' })
-const parties = computed(() => partyType.value === 'customer' ? customers.value || [] : suppliers.value || [])
-
-watch(partyType, () => { form.partyId = '' })
-
-async function submit() {
-  message.value = ''
-  errorMessage.value = ''
-  submitting.value = true
-  try {
-    const result = await $fetch<{ voucherNo: string }>('/api/party-ledger/payments', {
-      method: 'POST', body: { ...form, partyType: partyType.value }
-    })
-    message.value = `${result.voucherNo} posted successfully.`
-    form.amount = 0
-    form.referenceNo = ''
-    form.remarks = ''
-  } catch (error: any) {
-    errorMessage.value = error?.data?.statusMessage || 'Could not post the entry.'
-  } finally {
-    submitting.value = false
-  }
+function continueToLedger() {
+  return navigateTo(destination.value === 'customer' ? '/customer-ledger' : '/supplier-ledger')
 }
 </script>
 
 <template>
-  <div>
-    <h1 style="font-size:20px; margin-bottom:4px;">Party Receipt / Payment</h1>
-    <p style="color:var(--color-text-muted); margin:0 0 20px;">Choose an existing master. Posted entries are corrected through reversal, not direct editing.</p>
-    <form class="card" style="max-width:720px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;" @submit.prevent="submit">
-      <label>Entry type<select v-model="partyType"><option value="customer">Customer receipt</option><option value="supplier">Supplier payment</option></select></label>
-      <label>{{ partyType === 'customer' ? 'Customer' : 'Supplier' }}<select v-model="form.partyId" required><option value="" disabled>Select a master</option><option v-for="party in parties" :key="party.id" :value="party.id">{{ party.name }} — {{ party.code }}</option></select></label>
-      <label>Date<input v-model="form.entryDate" type="date" required></label>
-      <label>Amount (Rs)<input v-model.number="form.amount" type="number" min="0.01" step="0.01" required></label>
-      <label>Payment mode<select v-model="form.paymentMode"><option value="cash">Cash</option><option value="upi">UPI</option></select></label>
-      <label>Reference No<input v-model="form.referenceNo" maxlength="100"></label>
-      <label style="grid-column:1 / -1;">Remarks<textarea v-model="form.remarks" rows="3" maxlength="1000"></textarea></label>
-      <div style="grid-column:1 / -1;"><div v-if="errorMessage" style="color:var(--color-danger); margin-bottom:8px;">{{ errorMessage }}</div><div v-if="message" style="color:var(--color-accent); margin-bottom:8px;">{{ message }}</div><button type="submit" :disabled="submitting">{{ submitting ? 'Posting…' : 'Post Entry' }}</button></div>
-    </form>
-  </div>
+  <main>
+    <h1>Party Receipts & Payments</h1>
+    <p class="intro">Post a receipt or payment only from the relevant party subledger. This prevents duplicate entry screens and keeps collections, allocations, and balances in one controlled workflow.</p>
+
+    <section class="card selector" aria-labelledby="posting-destination">
+      <h2 id="posting-destination">Choose Posting Workflow</h2>
+      <label><input v-model="destination" type="radio" value="customer"> <strong>Customer Receipt</strong><span>Record money received, allocate it to credit invoices where applicable, and update receivables.</span></label>
+      <label><input v-model="destination" type="radio" value="supplier"> <strong>Supplier Payment</strong><span>Record money paid to a supplier and update payables.</span></label>
+      <button type="button" @click="continueToLedger">Continue to {{ destination === 'customer' ? 'Customer Ledger' : 'Supplier Ledger' }}</button>
+    </section>
+
+    <section class="card controls">
+      <h2>Posting Controls</h2>
+      <ul>
+        <li>Select an existing Customer or Supplier Master; never create a duplicate party for a repeat transaction.</li>
+        <li>Cash, UPI, bank, and cheque references must be recorded where applicable.</li>
+        <li>Posted financial values are append-only. Correct a monetary or party error through an authorized reversal and reposting—not direct editing.</li>
+        <li>Use the ledger for posting and audit review; use Customer/Supplier Master only for static identity and credit information.</li>
+      </ul>
+    </section>
+  </main>
 </template>
 
 <style scoped>
-label { display:block; font-size:12px; } input, select, textarea { display:block; width:100%; margin-top:4px; padding:8px; border:1px solid var(--color-border); border-radius:6px; } button { padding:10px 16px; background:var(--color-accent); color:white; border:0; border-radius:6px; cursor:pointer; }
+main { max-width: 900px; }
+h1 { margin: 0 0 4px; font-size: 20px; }
+h2 { margin: 0 0 12px; font-size: 16px; }
+.intro { margin: 0; color: var(--color-text-muted); }
+.selector, .controls { display: grid; gap: 12px; margin-top: 20px; }
+.selector label { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: start; cursor: pointer; }
+.selector input { margin-top: 3px; }
+.selector strong { display: block; }
+.selector span { grid-column: 2; color: var(--color-text-muted); font-size: 13px; margin-top: 2px; }
+button { width: fit-content; padding: 9px 14px; background: var(--color-accent); color: #fff; border: 0; border-radius: 5px; cursor: pointer; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--color-text-muted); font-size: 13px; }
 </style>

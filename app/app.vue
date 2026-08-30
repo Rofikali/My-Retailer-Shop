@@ -35,7 +35,7 @@ const navItems = [
   { to: '/supplier-ledger', label: 'Supplier Ledger' },
   { to: '/journal', label: 'Journal' },
   { to: '/general-ledger', label: 'General Ledger' },
-  { to: '/party-ledger', label: 'Receipts & Payments' },
+  { to: '/party-ledger', label: 'Party Posting' },
   { to: '/reports/trial-balance', label: 'Reports' },
   { to: '/reports/cash-flow', label: 'Cash Flow Statement' },
   { to: '/reports/profit-and-loss', label: 'Profit & Loss' },
