@@ -60,7 +60,7 @@ export class CustomersService {
     const presentedLedger = ledger.map((entry) => {
       const amendment = amendments.get(entry.id)
       const status = entry.referenceType === 'sale' ? statuses.get(entry.referenceId) ?? entry.status : entry.status
-      if (!amendment) return { ...entry, status }
+      if (!amendment) return { ...entry, status, settlementStatus: status }
       return {
         ...entry,
         particulars: amendment.particulars,
@@ -68,8 +68,8 @@ export class CustomersService {
         referenceNo: amendment.referenceNo,
         dueDate: amendment.dueDate,
         remarks: amendment.remarks,
-        status,
-        amendmentStatus: 'amended',
+        status: 'amended',
+        settlementStatus: status,
         amendmentReason: amendment.reason,
         amendedAt: amendment.createdAt
       }
