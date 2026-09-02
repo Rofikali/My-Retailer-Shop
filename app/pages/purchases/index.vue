@@ -1,5 +1,5 @@
 <script setup lang="ts">
-interface Purchase { id: string; purchaseNo: string; purchaseDate: string; productName: string; category: string | null; quantity: string; unitCost: string; discount: string; paymentMode: string; status: string; supplierName: string | null; warehouse: string; referenceNo: string | null; remarks: string | null; stockUpdated: boolean }
+interface Purchase { id: string; purchaseNo: string; purchaseDate: string; dueDate: string | null; productName: string; category: string | null; quantity: string; unitCost: string; discount: string; paymentMode: string; status: string; supplierName: string | null; warehouse: string; referenceNo: string | null; remarks: string | null; stockUpdated: boolean }
 interface Product { id: string; code: string; name: string; costPrice: string | null }
 interface Supplier { id: string; code: string; name: string }
 interface PurchaseLine { productId: string; quantity: number; unitCost: number; discount: number }
@@ -12,6 +12,7 @@ const submitting = ref(false)
 const formError = ref('')
 const purchaseDate = ref(new Date().toISOString().slice(0, 10))
 const paymentMode = ref<'cash' | 'upi' | 'credit'>('credit')
+const dueDate = ref('')
 const supplierId = ref('')
 const warehouse = ref('Main')
 const referenceNo = ref('')
@@ -35,10 +36,11 @@ async function submit() {
   formError.value = ''
   submitting.value = true
   try {
-    await $fetch('/api/purchases', { method: 'POST', body: { purchaseDate: purchaseDate.value, supplierId: supplierId.value, paymentMode: paymentMode.value, warehouse: warehouse.value, referenceNo: referenceNo.value || undefined, remarks: remarks.value || undefined, items: lines.value.map((line) => ({ ...line })) } })
+    await $fetch('/api/purchases', { method: 'POST', body: { purchaseDate: purchaseDate.value, supplierId: supplierId.value, paymentMode: paymentMode.value, dueDate: dueDate.value || undefined, warehouse: warehouse.value, referenceNo: referenceNo.value || undefined, remarks: remarks.value || undefined, items: lines.value.map((line) => ({ ...line })) } })
     showForm.value = false
     lines.value = [{ productId: '', quantity: 1, unitCost: 0, discount: 0 }]
     supplierId.value = ''
+    dueDate.value = ''
     warehouse.value = 'Main'
     referenceNo.value = ''
     remarks.value = ''
@@ -63,6 +65,7 @@ async function submit() {
         <div><label for="purchase-date" style="display:block; font-size:12px; margin-bottom:4px;">Date</label><input id="purchase-date" v-model="purchaseDate" type="date" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
         <div><label for="purchase-supplier" style="display:block; font-size:12px; margin-bottom:4px;">Supplier</label><select id="purchase-supplier" v-model="supplierId" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"><option value="" disabled>Select supplier</option><option v-for="supplier in supplierList" :key="supplier.id" :value="supplier.id">{{ supplier.name }} ({{ supplier.code }})</option></select></div>
         <div><label for="purchase-payment-mode" style="display:block; font-size:12px; margin-bottom:4px;">Payment Mode</label><select id="purchase-payment-mode" v-model="paymentMode" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"><option value="credit">Credit</option><option value="cash">Cash</option><option value="upi">UPI</option></select></div>
+        <div v-if="paymentMode === 'credit'"><label for="purchase-due-date" style="display:block; font-size:12px; margin-bottom:4px;">Due Date</label><input id="purchase-due-date" v-model="dueDate" type="date" :min="purchaseDate" required style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
         <div><label for="purchase-warehouse" style="display:block; font-size:12px; margin-bottom:4px;">Warehouse</label><input id="purchase-warehouse" v-model="warehouse" required maxlength="100" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
         <div><label for="purchase-reference" style="display:block; font-size:12px; margin-bottom:4px;">Reference</label><input id="purchase-reference" v-model="referenceNo" maxlength="100" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>
         <div><label for="purchase-remarks" style="display:block; font-size:12px; margin-bottom:4px;">Remarks</label><input id="purchase-remarks" v-model="remarks" maxlength="1000" style="width:100%; padding:8px; border:1px solid var(--color-border); border-radius:6px;"></div>

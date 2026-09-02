@@ -11,6 +11,10 @@ export const PartyLedgerPaymentInput = z.object({
   allocations: z.array(z.object({
     saleId: z.string().uuid(),
     amount: z.number().positive().max(10_000_000)
+  })).default([]),
+  supplierAllocations: z.array(z.object({
+    purchaseId: z.string().uuid(),
+    amount: z.number().positive().max(10_000_000)
   })).default([])
 }).superRefine((data, context) => {
   if (data.partyType !== 'customer' && data.allocations.length) {
@@ -23,5 +27,12 @@ export const PartyLedgerPaymentInput = z.object({
     if (Math.abs(allocated - data.amount) > 0.005) {
       context.addIssue({ code: z.ZodIssueCode.custom, message: 'Allocated invoice amounts must equal the receipt amount', path: ['allocations'] })
     }
+  }
+  if (data.partyType !== 'supplier' && data.supplierAllocations.length) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Only supplier payments can be allocated to purchases', path: ['supplierAllocations'] })
+  const duplicatePurchase = data.supplierAllocations.some((allocation, index) => data.supplierAllocations.findIndex((other) => other.purchaseId === allocation.purchaseId) !== index)
+  if (duplicatePurchase) context.addIssue({ code: z.ZodIssueCode.custom, message: 'A purchase can be allocated only once per payment', path: ['supplierAllocations'] })
+  if (data.supplierAllocations.length) {
+    const allocated = data.supplierAllocations.reduce((total, allocation) => total + allocation.amount, 0)
+    if (Math.abs(allocated - data.amount) > 0.005) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Allocated purchase amounts must equal the payment amount', path: ['supplierAllocations'] })
   }
 })

@@ -5,6 +5,7 @@ import { LedgerService } from '../../services/ledger.service'
 import { PartyLedgerService } from '../../services/party-ledger.service'
 import { PartyLedgerPaymentInput } from '../../utils/validation/partyLedgerPayment'
 import { CustomerReceivablesService } from '../../services/customer-receivables.service'
+import { SupplierPayablesService } from '../../services/supplier-payables.service'
 
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event) => {
     const ledger = new LedgerService(db)
     const partyLedger = new PartyLedgerService(db)
     const receivables = new CustomerReceivablesService(db)
+    const payables = new SupplierPayablesService(db)
 
     if (input.partyType === 'customer') {
       await ledger.post(dbTx, [
@@ -39,11 +41,13 @@ export default defineEventHandler(async (event) => {
         { accountCode: 'CREDITORS', debit: input.amount, supplierId: input.partyId },
         { accountCode: 'CASH', credit: input.amount }
       ], { entryDate: input.entryDate, description, referenceType: 'journal', referenceId, createdBy: user.id })
-      await partyLedger.post(dbTx, {
+      const payment = await partyLedger.post(dbTx, {
         entryDate: input.entryDate, voucherNo, supplierId: input.partyId, particulars: description,
         debit: String(input.amount), credit: '0', paymentMode: input.paymentMode, referenceType: 'journal', referenceId,
         referenceNo: input.referenceNo || null, status: 'posted', remarks: input.remarks || null, createdBy: user.id, approvedBy: user.id
       })
+      if (!payment) throw createError({ statusCode: 500, statusMessage: 'Payment ledger event was not created' })
+      await payables.allocatePayment(dbTx, payment.id, input.partyId, input.amount, input.supplierAllocations, user.id)
     }
   })
 
