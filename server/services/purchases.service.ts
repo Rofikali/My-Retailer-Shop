@@ -50,6 +50,7 @@ export class PurchasesService {
         purchaseDate: input.purchaseDate,
         supplierId: input.supplierId,
         paymentMode: input.paymentMode,
+        dueDate: input.dueDate || null,
         status,
         warehouse: input.warehouse,
         referenceNo: input.referenceNo || null,
@@ -91,7 +92,7 @@ export class PurchasesService {
       await this.partyLedger.post(dbTx, {
         entryDate: input.purchaseDate, voucherNo: `PUR-${purchaseNo}`, purchaseNo, supplierId: input.supplierId,
         particulars: `Purchase ${purchaseNo}`, debit: String(input.paymentMode === 'credit' ? 0 : totalAmount), credit: String(totalAmount),
-        paymentMode: input.paymentMode, referenceType: 'purchase', referenceId: purchase.id, referenceNo: input.referenceNo || null,
+        paymentMode: input.paymentMode, referenceType: 'purchase', referenceId: purchase.id, referenceNo: input.referenceNo || null, dueDate: input.dueDate || null,
         status, salespersonId: userId, remarks: input.remarks || null, createdBy: userId, approvedBy: userId
       })
 

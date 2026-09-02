@@ -85,6 +85,13 @@
       "when": 1787720400000,
       "tag": "0011_customer_receivable_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787988600000,
+      "tag": "0012_supplier_payable_settlement",
+      "breakpoints": true
     }
   ]
 }

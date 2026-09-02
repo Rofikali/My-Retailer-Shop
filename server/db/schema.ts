@@ -264,6 +264,7 @@ export const purchases = pgTable('purchases', {
   purchaseDate: date('purchase_date').notNull(),
   supplierId: uuid('supplier_id').references(() => suppliers.id),
   paymentMode: paymentModeEnum('payment_mode').notNull(),
+  dueDate: date('due_date'),
   status: saleStatusEnum('status').notNull(),
   warehouse: text('warehouse').notNull().default('Main'),
   referenceNo: text('reference_no'),
@@ -271,6 +272,19 @@ export const purchases = pgTable('purchases', {
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
+
+export const supplierPaymentAllocations = pgTable('supplier_payment_allocations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  paymentEventId: uuid('payment_event_id').notNull().references(() => partyLedgerEvents.id, { onDelete: 'restrict' }),
+  purchaseId: uuid('purchase_id').notNull().references(() => purchases.id, { onDelete: 'restrict' }),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  paymentPurchaseUnique: unique('supplier_payment_allocations_payment_purchase_unique').on(table.paymentEventId, table.purchaseId),
+  purchaseIdx: index('supplier_payment_allocations_purchase_idx').on(table.purchaseId),
+  paymentIdx: index('supplier_payment_allocations_payment_idx').on(table.paymentEventId)
+}))
 
 export const purchaseItems = pgTable('purchase_items', {
   id: uuid('id').primaryKey().defaultRandom(),
