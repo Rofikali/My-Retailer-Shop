@@ -14,10 +14,15 @@ export const PurchaseInput = z.object({
   purchaseDate: z.string().date(),
   supplierId: z.string().uuid(),
   paymentMode: z.enum(['cash', 'upi', 'credit']),
+  dueDate: z.string().date().optional(),
   warehouse: z.string().trim().min(1).max(100).default('Main'),
   referenceNo: z.string().trim().max(100).optional(),
   remarks: z.string().trim().max(1_000).optional(),
   items: z.array(PurchaseLineInput).min(1, 'At least one line item is required')
+}).superRefine((data, context) => {
+  if (data.paymentMode === 'credit' && !data.dueDate) context.addIssue({ code: z.ZodIssueCode.custom, message: 'A due date is required for a credit purchase', path: ['dueDate'] })
+  if (data.dueDate && data.dueDate < data.purchaseDate) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Due date cannot be before the purchase date', path: ['dueDate'] })
+  if (data.paymentMode !== 'credit' && data.dueDate) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Due date is only used for credit purchases', path: ['dueDate'] })
 })
 
 export type PurchaseInputType = z.infer<typeof PurchaseInput>

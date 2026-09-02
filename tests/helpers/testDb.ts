@@ -24,7 +24,7 @@ export const testDb = drizzle(client, { schema })
 export async function resetTestDb() {
   await testDb.execute(sql`
     TRUNCATE TABLE
-      customer_receipt_allocations, party_ledger_amendments, ledger_entries, inventory_movements, sale_items, sales, purchase_items, purchases,
+      supplier_payment_allocations, customer_receipt_allocations, party_ledger_amendments, ledger_entries, inventory_movements, sale_items, sales, purchase_items, purchases,
       expenses, cash_txns, customers, suppliers, products, accounts, users, business_profile
     RESTART IDENTITY CASCADE
   `)

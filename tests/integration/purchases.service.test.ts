@@ -29,7 +29,7 @@ describe('PurchasesService.recordPurchase', () => {
 
   it('posts Debit Inventory / Credit Creditors for a credit purchase, balanced', async () => {
     await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', items: [{ productId, quantity: 10, unitCost: 20 }] },
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', items: [{ productId, quantity: 10, unitCost: 20 }] },
       userId
     )
 
@@ -61,7 +61,7 @@ describe('PurchasesService.recordPurchase', () => {
 
   it('increases inventory by exactly the quantity purchased', async () => {
     await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', items: [{ productId, quantity: 25, unitCost: 20 }] },
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', items: [{ productId, quantity: 25, unitCost: 20 }] },
       userId
     )
 
@@ -72,7 +72,7 @@ describe('PurchasesService.recordPurchase', () => {
 
   it('reports warehouse stock, supplier, and stock-in totals in the inventory registry', async () => {
     await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', warehouse: 'Backroom', remarks: 'Received and checked', items: [{ productId, quantity: 25, unitCost: 20 }] },
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', warehouse: 'Backroom', remarks: 'Received and checked', items: [{ productId, quantity: 25, unitCost: 20 }] },
       userId
     )
 
@@ -83,7 +83,7 @@ describe('PurchasesService.recordPurchase', () => {
 
   it('persists discounts and posts only the net purchase amount to the ledger', async () => {
     const result = await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', warehouse: 'Main', items: [{ productId, quantity: 10, unitCost: 20, discount: 25 }] },
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', warehouse: 'Main', items: [{ productId, quantity: 10, unitCost: 20, discount: 25 }] },
       userId
     )
 
@@ -101,11 +101,11 @@ describe('PurchasesService.recordPurchase', () => {
     // balance, a new credit purchase, and partial payments, and the running balance
     // needs to reflect ALL of it correctly - not a hardcoded stale number.
     await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', items: [{ productId, quantity: 10, unitCost: 20 }] },
+      { purchaseDate: '2026-08-01', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', items: [{ productId, quantity: 10, unitCost: 20 }] },
       userId
     )
     await purchasesService.recordPurchase(
-      { purchaseDate: '2026-08-05', supplierId, paymentMode: 'credit', items: [{ productId, quantity: 5, unitCost: 20 }] },
+      { purchaseDate: '2026-08-05', supplierId, paymentMode: 'credit', dueDate: '2026-08-31', items: [{ productId, quantity: 5, unitCost: 20 }] },
       userId
     )
 
