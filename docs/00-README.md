@@ -1,48 +1,42 @@
 # RetailShop ERP — Documentation Suite
 
-**Scope:** Single-tenant internal ERP/accounting tool for one retail shop (owner-operated, single location).
+**Current scope:** Single-tenant ERP for one retail shop.
+**Long-term product direction:** A dependable retail ERP with stronger inventory, accounting, controls, and management reporting.
 **Stack:** Nuxt 4 (TypeScript) · Nitro server routes · PostgreSQL · Drizzle ORM · Docker Compose
-**Future-optional:** FastAPI (only if a Python-specific need arises) · Redis (only when a real perf/queue need arises)
 
-This is Phase 1 scope: **your shop only**, not a multi-tenant SaaS product. If you ever decide to sell this
-to other shop owners, read `11-Scaling-and-Multi-Tenant-Path.md` first — it explains what would need to
-change and why it's cheaper to do that migration from this foundation than to have built multi-tenant
-from day one with no real usage data to validate the design against.
+The product's ERP ambitions do not automatically require multi-tenant SaaS architecture. Keep the current single-shop scope until multi-branch or multi-business requirements are validated. See 11-Scaling-and-Multi-Tenant-Path.md for the separate evolution path.
 
 ## Reading order
 
-1. `01-PRD-BRD.md` — what this system does and for whom
-2. `02-HLD.md` — architecture, tech stack decisions, deployment topology
-3. `03-Database-Schema-ERD.md` — the data model (read this before writing any code)
-4. `04-LLD.md` — module/page/service breakdown, key sequence flows
-5. `05-API-Design.md` — endpoint contract
-6. `06-Design-Patterns.md` — patterns used, where, and why
-7. `07-SDLC-Process.md` — how work moves from idea to production, for a team of one
-8. `08-Testing-Strategy.md`
-9. `09-DevOps-Deployment.md`
-10. `10-Security-and-Data-Integrity.md`
-11. `11-Scaling-and-Multi-Tenant-Path.md`
-12. `14-Implementation-Roadmap.md`
-13. `15-Testing-and-Release-Runbook.md`
-14. `16-Engineering-Architecture-and-Workflow.md` â€” authoritative HLD/LLD, SOLID, patterns, and operating workflow
-15. `22-Party-Ledger-Amendments.md` â€” append-only correction rules for customer and supplier ledgers
-16. `24-Customer-Ledger-Operating-Guide.md` â€” receipt entry, full field dictionary, amendment controls, and CA review checklist
+1. 01-PRD-BRD.md — what this system does and for whom
+2. 02-HLD.md — architecture, tech stack decisions, deployment topology
+3. 03-Database-Schema-ERD.md — the data model
+4. 04-LLD.md — module/page/service breakdown, key sequence flows
+5. 05-API-Design.md — endpoint contract
+6. 06-Design-Patterns.md — patterns used, where, and why
+7. 07-SDLC-Process.md — how work moves from idea to production
+8. 08-Testing-Strategy.md
+9. 09-DevOps-Deployment.md
+10. 10-Security-and-Data-Integrity.md
+11. 11-Scaling-and-Multi-Tenant-Path.md
+12. 14-Implementation-Roadmap.md — current engineering priorities and exit criteria
+13. 15-Testing-and-Release-Runbook.md
+14. 16-Engineering-Architecture-and-Workflow.md — architecture and operating workflow
+15. 22-Party-Ledger-Amendments.md — append-only correction rules
+16. 24-Customer-Ledger-Operating-Guide.md — receipt entry and customer-ledger controls
+17. 25-ADR-001-Modular-Monolith-and-Rust-Adoption.md — architecture baseline and evidence gate for Rust/WASM
 
-## Non-negotiables carried over from the Excel rebuild
+## Non-negotiable business invariants
 
-These aren't style preferences — they're direct fixes for problems that actually happened in your
-spreadsheet, and the schema/architecture in these docs are designed specifically to make them structurally
-impossible instead of relying on discipline:
+- **Posted ledger entries are append-only.** Correct mistakes with traceable reversals/corrections.
+- **One business transaction must be atomic.** A sale or purchase and its ledger, stock, and party effects commit or roll back together.
+- **Customer and supplier identities are stable.** Enforce uniqueness and avoid duplicate masters.
+- **Inventory is movement-based and valued by a documented costing policy.**
+- **Financial reports derive from authoritative ledger records** and reconcile to the trial balance.
+- **Money uses exact arithmetic**, not binary floating-point calculations.
+- **Security is enforced server-side.** Browser input and client-side calculations are untrusted.
+- **No feature is considered complete without relevant verification evidence.**
 
-- **Ledger entries are append-only.** The Excel Balance Sheet had a ₹3,474 unexplained gap because rows
-  could be silently edited. In Postgres, financial facts are inserted, never updated — corrections are
-  reversing entries. See `03-Database-Schema-ERD.md`.
-- **One customer/supplier = one ID, enforced by a unique constraint**, not by discipline. The Excel file
-  reused one customer ID for 5 different people.
-- **Every multi-table write (sale → ledger → inventory) happens in one DB transaction.** This is exactly
-  the class of bug that caused the Sales Register and Cash Book to disagree.
-- **No feature is built until the ERD supports it.** UI-first development is what produced a spreadsheet
-  with three stacked, half-broken templates per sheet.
-- [18 — Production Hosting Runbook](18-Production-Hosting-Runbook.md)
-- [19 — CI/CD and Main Branch Protection](19-CI-CD-Branch-Protection.md)
-- [20 — Netlify Gated Deployment](20-Netlify-Gated-Deployment.md)
+## Architecture and runtime policy
+
+The default is a modular monolith with one authoritative PostgreSQL database. Rust, WebAssembly, native libraries, queues, caches, and service extraction are optional tools—not goals. Adopt them only for a measured requirement with a reviewed ADR, correctness tests, deployment evidence, and a rollback plan.

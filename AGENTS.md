@@ -1,10 +1,10 @@
 # Coding Agent Instructions
 
-These instructions apply to the entire repository. Read this file before changing code or documentation. Follow the more specific instructions in a nested `AGENTS.md` if one is added later, provided it does not weaken the invariants here.
+These instructions apply to the entire repository. Read this file before changing code or documentation. Follow the more specific instructions in a nested AGENTS.md if one is added later, provided it does not weaken the invariants here.
 
 ## 1. Mission and engineering standard
 
-RetailShop ERP is a business-critical, single-tenant ERP for one retail shop. It stores sales, purchases, inventory, customer and supplier balances, expenses, and financial reports. A technically valid change is not acceptable if it makes the books, stock, or audit trail incorrect.
+RetailShop ERP is currently a single-tenant ERP for one retail shop. Its long-term product direction is a dependable retail ERP with strong sales, purchasing, inventory, accounting, controls, and management reporting. A technically valid change is not acceptable if it makes the books, stock, security boundary, or audit trail incorrect.
 
 Work to a pragmatic Staff/Principal Engineer standard:
 - Understand the business problem and existing design before editing.
@@ -16,13 +16,14 @@ Work to a pragmatic Staff/Principal Engineer standard:
 ## 2. Required reading
 
 Before a change, read the relevant material from this set:
-1. `docs/00-README.md` — documentation map and business invariants.
-2. `docs/01-PRD-BRD.md` — scope and business requirements.
-3. `docs/02-HLD.md` — architecture and technology decisions.
-4. `docs/03-Database-Schema-ERD.md` — data model.
-5. `docs/04-LLD.md` and `docs/05-API-Design.md` — module and API design.
-6. `docs/06-Design-Patterns.md` and `docs/16-Engineering-Architecture-and-Workflow.md` — implementation conventions.
-7. `docs/08-Testing-Strategy.md`, `docs/10-Security-and-Data-Integrity.md`, and `docs/15-Testing-and-Release-Runbook.md` — verification and safety.
+1. docs/00-README.md — documentation map and business invariants.
+2. docs/01-PRD-BRD.md — scope and business requirements.
+3. docs/02-HLD.md — architecture and technology decisions.
+4. docs/03-Database-Schema-ERD.md — data model.
+5. docs/04-LLD.md and docs/05-API-Design.md — module and API design.
+6. docs/06-Design-Patterns.md and docs/16-Engineering-Architecture-and-Workflow.md — implementation conventions.
+7. docs/08-Testing-Strategy.md, docs/10-Security-and-Data-Integrity.md, and docs/15-Testing-and-Release-Runbook.md — verification and safety.
+8. docs/14-Implementation-Roadmap.md and docs/25-ADR-001-Modular-Monolith-and-Rust-Adoption.md — current priorities and architecture decision.
 
 Read only the sections relevant to the task when the change is narrow. Do not assume a document is current if code or migrations contradict it; identify and reconcile the discrepancy.
 
@@ -31,11 +32,11 @@ Read only the sections relevant to the task when the change is narrow. Do not as
 The approved baseline is a **modular monolith**:
 - Nuxt 4, Vue 3, TypeScript, and Nitro.
 - PostgreSQL with Drizzle ORM.
-- `app/` owns presentation and client interaction.
-- `server/api/` owns thin HTTP routing, authentication/authorization enforcement, and request/response boundaries.
-- `server/services/` owns business rules and transaction orchestration.
-- `server/repositories/` owns database queries.
-- `server/db/` owns schema, migrations, and database setup.
+- app/ owns presentation and client interaction.
+- server/api/ owns thin HTTP routing, authentication/authorization enforcement, and request/response boundaries.
+- server/services/ owns business rules and transaction orchestration.
+- server/repositories/ owns database queries.
+- server/db/ owns schema, migrations, and database setup.
 
 Rules:
 - UI components must not access the database.
@@ -44,6 +45,20 @@ Rules:
 - Services own multi-table transaction boundaries.
 - Do not introduce microservices, Redis, queues, a second database, Rust, native extensions, or another framework without a demonstrated requirement, an ADR, and a migration/operational plan.
 - Do not duplicate authoritative business state in caches or report-specific tables without a documented consistency strategy.
+- Keep the current single-shop scope until multi-branch or multi-business requirements are validated. Do not add tenant complexity merely because this is an ERP.
+
+### 3.1 Performance and new-runtime adoption
+
+Follow docs/25-ADR-001-Modular-Monolith-and-Rust-Adoption.md and .agents/skills/architecture-performance/SKILL.md before introducing Rust, WebAssembly, native libraries, queues, caches, another database, or service extraction.
+
+- Profile representative workloads before optimizing.
+- Distinguish database/network latency from CPU-bound work.
+- TypeScript remains the default application and business-rule runtime.
+- Rust native code is a candidate only for a measured server-side CPU bottleneck.
+- Rust/WASM is a candidate only for measured browser-side CPU work or a validated offline requirement.
+- WASM and native modules are not security boundaries and must not own authoritative financial posting or authorization.
+- Do not assume a .so artifact is compatible with every deployment target.
+- A benchmark must include correctness parity and the total operational/maintenance cost.
 
 ## 4. Non-negotiable accounting and inventory invariants
 
@@ -73,7 +88,7 @@ For any accounting change, provide a hand-calculated example and show the expect
 - Apply least privilege to database roles and deployment credentials.
 - Consider replay, CSRF, IDOR, privilege escalation, race conditions, mass assignment, and sensitive-data exposure for relevant changes.
 - Security-sensitive changes require negative tests, not only happy-path tests.
-- Follow `SECURITY.md` for vulnerability reporting. Do not disclose exploitable details in public issues.
+- Follow SECURITY.md for vulnerability reporting. Do not disclose exploitable details in public issues.
 
 ## 6. Clean code and maintainability
 
@@ -97,15 +112,15 @@ For any accounting change, provide a hand-calculated example and show the expect
 
 ## 8. Verification and evidence
 
-Use the package scripts that exist in `package.json`; do not invent commands.
+Use the package scripts that exist in package.json; do not invent commands.
 
 Typical checks:
-- `pnpm run typecheck`
-- `pnpm run test`
-- `pnpm run test:integration` (requires the configured isolated test PostgreSQL database)
-- `pnpm run test:e2e` (requires the app, database, and Playwright browser setup)
-- `pnpm run build`
-- `pnpm run test:all` (unit and integration tests; it does not include E2E)
+- pnpm run typecheck
+- pnpm run test
+- pnpm run test:integration (requires the configured isolated test PostgreSQL database)
+- pnpm run test:e2e (requires the app, database, and Playwright browser setup)
+- pnpm run build
+- pnpm run test:all (unit and integration tests; it does not include E2E)
 
 Run the narrowest relevant checks first, then broader checks when practical. Report exact commands and actual outcomes. Distinguish not run, blocked, failed, and passed. Never convert a typecheck or mocked unit test into a claim that a real database flow or production deployment was verified.
 
@@ -113,8 +128,8 @@ For financial or security-sensitive changes, add regression tests for the failur
 
 ## 9. Git and pull request workflow
 
-- Inspect `git status`, current branch, and recent history before editing.
-- Start from the latest `main` and use a focused branch unless the user explicitly directs work on an existing PR branch.
+- Inspect git status, current branch, and recent history before editing.
+- Start from the latest main and use a focused branch unless the user explicitly directs work on an existing PR branch.
 - Do not overwrite unrelated user changes, force-push, or rewrite shared history.
 - Keep changes small and logically grouped.
 - Open or update a PR with problem, design, risks, migration impact, tests actually run, and known limitations.
