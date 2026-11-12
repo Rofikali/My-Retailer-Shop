@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
