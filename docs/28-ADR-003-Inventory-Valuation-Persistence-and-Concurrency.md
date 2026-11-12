@@ -104,8 +104,9 @@ The service must validate aggregate requested quantity against the locked balanc
 ### Sales
 
 - Ignore browser-supplied costPrice as an authority.
-- For each aggregated product/warehouse issue, calculate COGS using the locked MWAC balance.
+- Aggregate duplicate sale lines by product + warehouse for the stock-availability check, then perform one MWAC issue per product/warehouse group while the balance row is locked. This creates one quantity movement and one valuation event for that group.
 - Persist an authoritative per-sale-line total cost_value (integer paise at the domain boundary, numeric currency value in PostgreSQL). Existing sale_items.cost_price may remain as a legacy/display snapshot during transition, but must not determine COGS or GL postings.
+- Allocate the group's total COGS to its original sale lines in proportion to line quantity using integer arithmetic: floor each exact proportional share, then distribute remaining paise by descending fractional remainder; break ties by original line order. The allocated line values must sum exactly to the group's valuation-event COGS.
 - Sum the authoritative line cost values for Dr COGS / Cr INVENTORY.
 - Persist the selected warehouse on the sale document or line so the source movement and valuation event have an unambiguous warehouse.
 - Keep selling price and discount snapshots separate from inventory cost snapshots.
