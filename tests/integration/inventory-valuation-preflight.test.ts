@@ -33,8 +33,10 @@ describe('Inventory valuation preflight is read-only and evidence-based', () => 
     })
 
     await testDb.insert(inventoryMovements).values([
-      { productId: product.id, movementDate: '2026-11-01', type: 'purchase', quantity: '10', warehouse: 'Main', referenceType: 'purchase', referenceId: purchase.id, createdBy: userId },
+      { productId: product.id, movementDate: '2026-11-01', type: 'purchase', quantity: '9', warehouse: 'Main', referenceType: 'purchase', referenceId: purchase.id, createdBy: userId },
+      { productId: product.id, movementDate: '2026-11-01', type: 'purchase', quantity: '1', warehouse: 'Back', referenceType: 'purchase', referenceId: purchase.id, createdBy: userId },
       { productId: product.id, movementDate: '2026-11-02', type: 'sale', quantity: '-3', warehouse: 'Main', referenceType: 'sale', referenceId: sale.id, createdBy: userId },
+      { productId: product.id, movementDate: '2026-11-02', type: 'sale', quantity: '-1', warehouse: 'Main', referenceType: 'sale', referenceId: sale.id, createdBy: userId },
       { productId: product.id, movementDate: '2026-11-03', type: 'damage', quantity: '-1', warehouse: 'Main', referenceType: 'manual', createdBy: userId },
       { productId: product.id, movementDate: '2026-11-04', type: 'sale', quantity: '-1', warehouse: 'Main', referenceType: 'sale', createdBy: userId }
     ])
@@ -60,14 +62,18 @@ describe('Inventory valuation preflight is read-only and evidence-based', () => 
     expect(report.mode).toBe('read_only_preflight')
     expect(report.valuationCalculated).toBe(false)
     expect(report.inventoryControlBalance).toBe(70)
-    expect(report.totals.movementCount).toBe(4)
-    expect(report.totals.purchaseMovementCount).toBe(1)
-    expect(report.totals.saleMovementCount).toBe(2)
+    expect(report.totals.movementCount).toBe(6)
+    expect(report.totals.purchaseMovementCount).toBe(2)
+    expect(report.totals.saleMovementCount).toBe(3)
     expect(report.totals.manualMovementCount).toBe(1)
     expect(report.totals.unlinkedSourceMovementCount).toBe(1)
+    expect(report.totals.sourceQuantityMismatchMovementCount).toBe(2)
+    expect(report.totals.purchaseWarehouseMismatchMovementCount).toBe(1)
     expect(report.readyForCutover).toBe(false)
-    expect(report.productsByWarehouse[0].currentQuantity).toBe(5)
-    expect(report.productsByWarehouse[0].requiresOwnerReview).toBe(true)
+    const mainWarehouse = report.productsByWarehouse.find((row) => row.warehouse === 'Main')
+    expect(mainWarehouse?.currentQuantity).toBe(3)
+    expect(mainWarehouse?.requiresOwnerReview).toBe(true)
+    expect(report.productsByWarehouse.find((row) => row.warehouse === 'Back')?.currentQuantity).toBe(1)
     expect(after).toHaveLength(before.length)
   })
 })
