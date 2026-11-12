@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import {
   inventoryMovements,
@@ -29,7 +29,9 @@ export interface ValuationIssueInput extends ValuationSource {
 
 function assertSource(input: ValuationSource) {
   if (!input.productId.trim()) throw new TypeError('Product ID is required.')
-  if (!input.warehouse.trim()) throw new TypeError('Warehouse is required.')
+  if (!input.warehouse.trim() || input.warehouse !== input.warehouse.trim()) {
+    throw new TypeError('Warehouse is required and must not contain surrounding whitespace.')
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.movementDate)) {
     throw new TypeError('Movement date must use YYYY-MM-DD.')
   }
@@ -204,6 +206,26 @@ export class InventoryValuationService {
     if (!balance) throw new Error('Inventory valuation balance could not be locked.')
     if (balance.valuationStatus !== 'active') {
       throw new Error('Inventory valuation balance is uninitialized; owner-approved opening valuation is required.')
+    }
+
+    // An active projection must never silently absorb quantity movements created
+    // by the legacy posting path. Every movement in this product/warehouse scope
+    // must already have its immutable valuation event before another valued write.
+    const [unvaluedMovement] = await tx.select({ id: inventoryMovements.id })
+      .from(inventoryMovements)
+      .leftJoin(
+        inventoryValuationEvents,
+        eq(inventoryValuationEvents.inventoryMovementId, inventoryMovements.id)
+      )
+      .where(and(
+        eq(inventoryMovements.productId, productId),
+        eq(inventoryMovements.warehouse, warehouse),
+        isNull(inventoryValuationEvents.id)
+      ))
+      .limit(1)
+
+    if (unvaluedMovement) {
+      throw new Error('Inventory contains an unvalued legacy movement; reconciliation is required before MWAC posting.')
     }
 
     return balance
