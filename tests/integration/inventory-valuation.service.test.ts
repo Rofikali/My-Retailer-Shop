@@ -161,6 +161,40 @@ describe('InventoryValuationService', () => {
     expect(events).toHaveLength(2)
   })
 
+  it('serializes concurrent first receipts while creating a missing balance row', async () => {
+    const firstReceiptProductId = await createProduct('PRO-MWAC-FIRST-ROW-RACE-1')
+
+    const outcomes = await Promise.allSettled([
+      receive({
+        productId: firstReceiptProductId,
+        quantity: '5.00',
+        acquisitionValueMinorUnits: '5000'
+      }),
+      receive({
+        productId: firstReceiptProductId,
+        quantity: '5.00',
+        acquisitionValueMinorUnits: '5000'
+      })
+    ])
+
+    expect(outcomes.every((outcome) => outcome.status === 'fulfilled')).toBe(true)
+
+    const [balance] = await testDb.select().from(inventoryValuationBalances).where(and(
+      eq(inventoryValuationBalances.productId, firstReceiptProductId),
+      eq(inventoryValuationBalances.warehouse, 'Main')
+    ))
+    const movements = await testDb.select().from(inventoryMovements)
+      .where(eq(inventoryMovements.productId, firstReceiptProductId))
+    const events = await testDb.select().from(inventoryValuationEvents)
+      .where(eq(inventoryValuationEvents.productId, firstReceiptProductId))
+
+    expect(balance.quantity).toBe('10.00')
+    expect(balance.carryingValue).toBe('100.00')
+    expect(balance.version).toBe(2)
+    expect(movements).toHaveLength(2)
+    expect(events).toHaveLength(2)
+  })
+
   it('blocks an active balance when an unvalued legacy movement exists in that warehouse', async () => {
     const mixedHistoryProductId = await createProduct('PRO-MWAC-MIXED-HISTORY-1')
 
