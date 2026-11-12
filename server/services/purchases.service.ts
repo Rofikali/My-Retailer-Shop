@@ -42,6 +42,15 @@ export class PurchasesService {
 
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
+      // Purchase receipts participate in the same product-row lock protocol as
+      // sales and manual adjustments, even though they do not consume stock.
+      await this.inventory.lockStockForWrite(
+        dbTx,
+        input.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        input.warehouse ?? 'Main',
+        'in'
+      )
+
 
       const purchase = await this.repo.insertPurchase(dbTx, {
         purchaseNo,
