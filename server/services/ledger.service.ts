@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 function decimalToMinorUnits(value: string): bigint {
   const match = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(value)
   if (!match) throw new RangeError('Exact ledger amounts must be non-negative decimals with at most two places.')
-  return BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
+  return BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
 }
 
 /**
