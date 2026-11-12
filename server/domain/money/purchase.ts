@@ -37,7 +37,7 @@ function decimalToScaledInteger(value: number, field: string, maximumScaled: big
     throw new RangeError(`${field} must have no more than two decimal places.`)
   }
 
-  const whole = BigInt(match[1])
+  const whole = BigInt(match[1]!)
   const fraction = BigInt((match[2] ?? '').padEnd(2, '0'))
   const scaled = whole * 100n + fraction
   if (scaled > maximumScaled) throw new RangeError(`${field} exceeds the database numeric precision.`)
