@@ -1,6 +1,5 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { and, eq } from 'drizzle-orm'
 import { inventoryValuationBalances } from '../db/schema'
 
 export interface InventoryScope {
@@ -46,7 +45,7 @@ export async function lockInventoryScopes(tx: Database, scopes: InventoryScope[]
 export async function assertLegacyInventoryWriteAllowed(tx: Database, scopes: InventoryScope[]) {
   const uniqueScopes = new Map<string, InventoryScope>()
   for (const scope of scopes) {
-    uniqueScopes.set(`${scope.productId}\\u0000${scope.warehouse}`, scope)
+    uniqueScopes.set(`${scope.productId}\u0000${scope.warehouse}`, scope)
   }
 
   for (const scope of [...uniqueScopes.values()].sort((a, b) =>
