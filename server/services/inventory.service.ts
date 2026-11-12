@@ -109,6 +109,7 @@ export class InventoryService {
   async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
     const warehouse = opts.warehouse ?? 'Main'
+    for (const line of lines) quantityToScaled(line.quantity, 'Purchase quantity')
     const scopes = lines.map((line) => ({ productId: line.productId, warehouse }))
     await lockInventoryScopes(tx, scopes)
     await assertLegacyInventoryWriteAllowed(tx, scopes)
@@ -171,9 +172,9 @@ export class InventoryService {
         movementType = 'adjustment'
       }
 
+      const required = quantityToScaled(Math.abs(movementQuantity), 'Adjustment quantity')
       if (movementQuantity < 0) {
         const available = storedQuantityToScaled(await this.repo.getCurrentStockForWarehouse(dbTx, input.productId, warehouse))
-        const required = quantityToScaled(Math.abs(movementQuantity), 'Adjustment quantity')
         if (available < required) {
           throw new Error(`Insufficient stock for product ${input.productId} in warehouse ${warehouse}.`)
         }
