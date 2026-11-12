@@ -192,9 +192,13 @@ export class ReportService {
       saleMovementCount: Number(row.sale_movement_count),
       manualMovementCount: Number(row.manual_movement_count),
       unlinkedSourceMovementCount: Number(row.unlinked_source_movement_count),
+      sourceQuantityMismatchMovementCount: Number(row.source_quantity_mismatch_movement_count),
+      purchaseWarehouseMismatchMovementCount: Number(row.purchase_warehouse_mismatch_movement_count),
       negativeStock: Number(row.current_quantity) < 0,
       requiresOwnerReview: Number(row.manual_movement_count) > 0 ||
-        Number(row.unlinked_source_movement_count) > 0 || Number(row.current_quantity) < 0
+        Number(row.unlinked_source_movement_count) > 0 ||
+        Number(row.source_quantity_mismatch_movement_count) > 0 ||
+        Number(row.purchase_warehouse_mismatch_movement_count) > 0 || Number(row.current_quantity) < 0
     }))
 
     const totals = productsByWarehouse.reduce((total, row) => ({
@@ -204,11 +208,14 @@ export class ReportService {
       saleMovementCount: total.saleMovementCount + row.saleMovementCount,
       manualMovementCount: total.manualMovementCount + row.manualMovementCount,
       unlinkedSourceMovementCount: total.unlinkedSourceMovementCount + row.unlinkedSourceMovementCount,
+      sourceQuantityMismatchMovementCount: total.sourceQuantityMismatchMovementCount + row.sourceQuantityMismatchMovementCount,
+      purchaseWarehouseMismatchMovementCount: total.purchaseWarehouseMismatchMovementCount + row.purchaseWarehouseMismatchMovementCount,
       negativeStockBalances: total.negativeStockBalances + (row.negativeStock ? 1 : 0),
       balancesRequiringOwnerReview: total.balancesRequiringOwnerReview + (row.requiresOwnerReview ? 1 : 0)
     }), {
       productWarehouseBalances: 0, movementCount: 0, purchaseMovementCount: 0,
       saleMovementCount: 0, manualMovementCount: 0, unlinkedSourceMovementCount: 0,
+      sourceQuantityMismatchMovementCount: 0, purchaseWarehouseMismatchMovementCount: 0,
       negativeStockBalances: 0, balancesRequiringOwnerReview: 0
     })
 
@@ -218,14 +225,17 @@ export class ReportService {
       valuationCalculated: false,
       inventoryControlBalance,
       totals,
-      preflightStatus: totals.manualMovementCount > 0 || totals.unlinkedSourceMovementCount > 0 || totals.negativeStockBalances > 0
+      preflightStatus: totals.manualMovementCount > 0 || totals.unlinkedSourceMovementCount > 0 ||
+        totals.sourceQuantityMismatchMovementCount > 0 || totals.purchaseWarehouseMismatchMovementCount > 0 ||
+        totals.negativeStockBalances > 0
         ? 'review_required'
         : 'no_detected_quantity_or_source_link_gaps',
       // This report cannot authorize cutover: it does not reconstruct historical carrying values.
       readyForCutover: false,
       limitations: [
         'Legacy inventory movements contain quantity but no immutable carrying-value snapshot.',
-        'Purchase and sale source links are checked by product; this report does not prove historical valuation or line-quantity equality.',
+        'Purchase and sale source quantities are compared with aggregated document lines; mismatch counts are movement-row counts, not distinct document counts.',
+        'Purchase movements are checked against the purchase document warehouse. Sales do not yet have a persisted warehouse field, so sale warehouse provenance cannot be independently verified.',
         'Opening, damage, and adjustment movements require an owner-approved valuation treatment.',
         'The General Ledger INVENTORY balance is shown as a control total; it is not allocated to products or warehouses here.',
         'No values are inferred from the current product cost price, and no records are changed.'
