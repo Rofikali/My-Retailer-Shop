@@ -5,7 +5,6 @@ import { InventoryRepo } from '../repositories/inventory.repo'
 import { LedgerService } from './ledger.service'
 import type { InventoryAdjustmentInputType } from '../utils/validation/inventoryAdjustment'
 
-
 function quantityToMinorUnits(value: number | string, allowZero = false, allowNegative = false): bigint {
   const text = String(value)
   const match = /^(-?)(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(text)
@@ -63,7 +62,6 @@ export class InventoryService {
   async getMovements(productId: string) {
     return this.repo.getMovements(productId)
   }
-
 
   /**
    * Acquire the common legacy stock-writer lock and, for outbound movements,
@@ -166,6 +164,7 @@ export class InventoryService {
         movementType = 'damage'
       } else {
         movementQuantity = input.quantity // correction: sign as given
+        movementType = 'adjustment'
       }
 
       await this.lockStockForWrite(
