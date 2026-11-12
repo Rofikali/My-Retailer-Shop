@@ -218,8 +218,11 @@ export class ReportService {
       valuationCalculated: false,
       inventoryControlBalance,
       totals,
-      readyForCutover: totals.manualMovementCount === 0 &&
-        totals.unlinkedSourceMovementCount === 0 && totals.negativeStockBalances === 0,
+      preflightStatus: totals.manualMovementCount > 0 || totals.unlinkedSourceMovementCount > 0 || totals.negativeStockBalances > 0
+        ? 'review_required'
+        : 'no_detected_quantity_or_source_link_gaps',
+      // This report cannot authorize cutover: it does not reconstruct historical carrying values.
+      readyForCutover: false,
       limitations: [
         'Legacy inventory movements contain quantity but no immutable carrying-value snapshot.',
         'Purchase and sale source links are checked by product; this report does not prove historical valuation or line-quantity equality.',
