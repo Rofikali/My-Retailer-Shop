@@ -1,4 +1,4 @@
-import { eq, sql, asc } from 'drizzle-orm'
+import { eq, sql, asc, inArray } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import { products, inventoryMovements, purchases, suppliers } from '../db/schema'
 
@@ -163,6 +163,44 @@ export class InventoryRepo {
       .from(inventoryMovements)
       .where(eq(inventoryMovements.productId, productId))
       .orderBy(asc(inventoryMovements.movementDate), asc(inventoryMovements.createdAt))
+  }
+
+
+  /**
+   * Serialize every legacy stock writer for a product by locking its product row.
+   * Callers must acquire these locks in sorted product-ID order and keep the
+   * caller-owned transaction open until all related writes commit.
+   *
+   * Product-level locking is intentionally coarser than warehouse-level locking
+   * during the legacy transition. It gives sales, purchases, and manual adjustments
+   * one common lock target even when no valuation balance exists yet.
+   */
+  async lockProductsForStockWrite(tx: Database, productIds: string[]) {
+    const ids = [...new Set(productIds)].sort()
+    if (ids.length === 0) return []
+
+    const rows = await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(inArray(products.id, ids))
+      .orderBy(asc(products.id))
+      .for('update')
+
+    if (rows.length !== ids.length) {
+      throw new Error('One or more stock products do not exist.')
+    }
+
+    return rows.map((row) => row.id)
+  }
+
+  /** Read stock only after the product lock has been acquired in this transaction. */
+  async getWarehouseStock(tx: Database, productId: string, warehouse: string): Promise<string> {
+    const [row] = await tx
+      .select({ total: sql<string>`COALESCE(SUM(${inventoryMovements.quantity}), 0)::text` })
+      .from(inventoryMovements)
+      .where(sql`${inventoryMovements.productId} = ${productId} AND ${inventoryMovements.warehouse} = ${warehouse}`)
+
+    return row?.total ?? '0'
   }
 
   async getCurrentStock(productId: string): Promise<number> {
