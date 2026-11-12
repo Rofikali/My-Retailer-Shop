@@ -20,6 +20,17 @@ describe('SalesService.recordSale', () => {
 
     const [product] = await testDb.insert(products).values({ code: 'PRO-0001', name: 'Widget', reorderLevel: '0' }).returning()
     productId = product.id
+
+    // Every sale fixture starts with real available stock. The stock writer now
+    // correctly rejects sales that would drive the warehouse balance negative.
+    await testDb.insert(inventoryMovements).values({
+      productId,
+      movementDate: '2026-07-31',
+      type: 'opening',
+      quantity: '100.00',
+      warehouse: 'Main',
+      createdBy: userId
+    })
   })
 
   afterAll(async () => {
@@ -65,8 +76,10 @@ describe('SalesService.recordSale', () => {
     )
 
     const movements = await testDb.select().from(inventoryMovements).where(eq(inventoryMovements.productId, productId))
-    expect(movements).toHaveLength(1)
-    expect(Number(movements[0].quantity)).toBe(-3)
+    const saleMovements = movements.filter((movement) => movement.type === 'sale')
+    expect(saleMovements).toHaveLength(1)
+    expect(Number(saleMovements[0].quantity)).toBe(-3)
+    expect(movements.reduce((total, movement) => total + Number(movement.quantity), 0)).toBe(97)
   })
 
   it('snapshots cost/selling price on the sale line, independent of what the product master says later', async () => {
@@ -118,6 +131,7 @@ describe('SalesService.recordSale', () => {
     // Nothing committed - not the sale, not the ledger lines, not the stock movement.
     expect(allSales).toHaveLength(0)
     expect(allEntries).toHaveLength(0)
-    expect(allMovements).toHaveLength(0)
+    expect(allMovements).toHaveLength(1)
+    expect(allMovements[0]).toMatchObject({ type: 'opening', quantity: '100.00' })
   })
 })
