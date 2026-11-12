@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import type { Database } from '../../server/db/client'
 import { inventoryValuationService } from '../../server/services/inventory-valuation.service'
+import { InventoryService } from '../../server/services/inventory.service'
 import {
   inventoryMovements,
   inventoryValuationBalances,
@@ -251,6 +252,60 @@ describe('InventoryValuationService', () => {
     expect(balances).toHaveLength(0)
     expect(movements).toHaveLength(0)
     expect(events).toHaveLength(0)
+  })
+
+  it('serializes concurrent legacy sale deductions and prevents overselling', async () => {
+    const legacyProductId = await createProduct('PRO-LEGACY-STOCK-RACE-1')
+    await testDb.insert(inventoryMovements).values({
+      productId: legacyProductId,
+      movementDate: '2026-11-12',
+      type: 'opening',
+      quantity: '10.00',
+      warehouse: 'Main',
+      createdBy: userId
+    })
+
+    const inventory = new InventoryService(testDb)
+    const deduct = () => testDb.transaction((tx) => inventory.deduct(tx as unknown as Database, [
+      { productId: legacyProductId, quantity: 6 }
+    ], {
+      movementDate: '2026-11-12',
+      referenceType: 'sale',
+      referenceId: '00000000-0000-0000-0000-000000000001',
+      createdBy: userId
+    }))
+
+    const outcomes = await Promise.allSettled([deduct(), deduct()])
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1)
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1)
+
+    const movements = await testDb.select().from(inventoryMovements)
+      .where(eq(inventoryMovements.productId, legacyProductId))
+    expect(movements).toHaveLength(2)
+    expect(movements.reduce((sum, movement) => sum + Number(movement.quantity), 0)).toBe(4)
+  })
+
+  it('rejects legacy quantity writes after a product warehouse becomes MWAC-valued', async () => {
+    const valuedProductId = await createProduct('PRO-VALUED-LEGACY-WRITE-1')
+    await receive({
+      productId: valuedProductId,
+      quantity: '5.00',
+      acquisitionValueMinorUnits: '5000'
+    })
+
+    const inventory = new InventoryService(testDb)
+    await expect(testDb.transaction((tx) => inventory.receive(tx as unknown as Database, [
+      { productId: valuedProductId, quantity: 2 }
+    ], {
+      movementDate: '2026-11-12',
+      referenceType: 'purchase',
+      referenceId: '00000000-0000-0000-0000-000000000002',
+      createdBy: userId
+    }))).rejects.toThrow(/active valuation/i)
+
+    const movements = await testDb.select().from(inventoryMovements)
+      .where(eq(inventoryMovements.productId, valuedProductId))
+    expect(movements).toHaveLength(1)
   })
 
   it('rejects negative acquisition values and zero-quantity receipts without persistence', async () => {
