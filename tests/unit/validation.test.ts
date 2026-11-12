@@ -76,11 +76,38 @@ describe('SaleInput', () => {
 })
 
 describe('PurchaseInput', () => {
+  const validPurchase = {
+    purchaseDate: '2026-08-01',
+    supplierId: '00000000-0000-0000-0000-000000000002',
+    paymentMode: 'cash' as const,
+    items: [{ productId: '00000000-0000-0000-0000-000000000001', quantity: 1, unitCost: 10 }]
+  }
+
   it('requires a supplier even for a cash purchase (unlike sales, which allow walk-in)', () => {
+    const { supplierId: _supplierId, ...withoutSupplier } = validPurchase
+    expect(PurchaseInput.safeParse(withoutSupplier).success).toBe(false)
+  })
+
+  it('accepts a discount up to the line amount after paise rounding', () => {
     const result = PurchaseInput.safeParse({
-      purchaseDate: '2026-08-01', paymentMode: 'cash',
-      items: [{ productId: '00000000-0000-0000-0000-000000000001', quantity: 1, unitCost: 10 }]
-      // supplierId deliberately omitted
+      ...validPurchase,
+      items: [{ productId: validPurchase.items[0].productId, quantity: 0.1, unitCost: 0.25, discount: 0.03 }]
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a discount above the rounded gross line amount', () => {
+    const result = PurchaseInput.safeParse({
+      ...validPurchase,
+      items: [{ productId: validPurchase.items[0].productId, quantity: 0.1, unitCost: 0.25, discount: 0.04 }]
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects purchase quantities with more than two decimal places', () => {
+    const result = PurchaseInput.safeParse({
+      ...validPurchase,
+      items: [{ productId: validPurchase.items[0].productId, quantity: 0.001, unitCost: 10 }]
     })
     expect(result.success).toBe(false)
   })
