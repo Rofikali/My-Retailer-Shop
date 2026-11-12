@@ -97,10 +97,10 @@ The service must validate aggregate requested quantity against the locked balanc
 
 ### Purchases
 
-- Compute each purchase line's gross acquisition value from quantity × unit cost using exact integer arithmetic.
+- Compute each purchase line's gross acquisition value from quantity × unit cost using exact integer arithmetic. PR #27 implements this calculation in BigInt paise and routes the exact decimal total through the purchase GL and supplier subledger posting.
 - Round the line's gross value to the nearest paise using round-half-up, then subtract the persisted line discount in paise.
 - Reject a discount greater than the rounded gross line value.
-- Pass the resulting net acquisition value to receiveMwac.
+- Pass the resulting net acquisition value to receiveMwac. The current purchase workflow still uses the legacy quantity-only receipt path; the MWAC integration remains a separate milestone and must not be inferred from the exact monetary calculation.
 - The initial implementation must not silently add GST, freight, or other landed costs. Those require a separate approved policy.
 
 ### Sales

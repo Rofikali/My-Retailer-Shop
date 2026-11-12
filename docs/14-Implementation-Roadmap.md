@@ -37,8 +37,8 @@ Audit and then remediate in small, independently testable changes. The initial s
    - [x] Read-only historical valuation preflight implemented (PR #20 and follow-up PR #21).
    - [x] Pure exact-decimal MWAC engine implemented (PR #23).
    - [x] Review/accept ADR-003 persistence and concurrency design (PR #24).
-   - [ ] Additive valuation-event and balance-projection schema migration with PostgreSQL constraints.
-   - [ ] Implement transaction-scoped stock/valuation service and concurrency tests.
+   - [x] Additive valuation-event and balance-projection schema migration with PostgreSQL constraints (PR #25).
+   - [x] Implement transaction-scoped stock/valuation service and concurrency tests (PR #26).
    - [ ] Derive purchase receipt value and sale COGS on the server; preserve immutable line snapshots.
    - [ ] Complete opening valuation, damage/correction policies, reconciliation, and owner-approved cutover before enabling new posting behavior.
 2. **Atomic transaction boundaries**
@@ -55,7 +55,9 @@ Audit and then remediate in small, independently testable changes. The initial s
    - Prevent cashbook entries from silently duplicating or bypassing sales, purchase, or expense source documents.
    - Make source-document linkage explicit.
 6. **Exact money arithmetic**
-   - Audit numeric conversions and calculations.
+   - [x] Calculate purchase line gross value, half-up paise rounding, discounts, and aggregate totals with BigInt (PR #27).
+   - [x] Allow exact decimal-string amounts through the ledger posting boundary for workflows migrated to paise arithmetic (PR #27).
+   - Audit remaining numeric conversions and calculations in sales, expenses, receipts, and adjustments.
    - Use integer minor units or exact decimal arithmetic consistently at calculation and persistence boundaries.
 7. **Reconciliation**
    - Reconcile stock movement quantity/value to inventory control accounts.
