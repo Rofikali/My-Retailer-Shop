@@ -1,4 +1,4 @@
-import { eq, sql, asc, inArray } from 'drizzle-orm'
+import { and, eq, sql, asc, inArray } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import { products, inventoryMovements, purchases, suppliers } from '../db/schema'
 
@@ -198,7 +198,7 @@ export class InventoryRepo {
     const [row] = await tx
       .select({ total: sql<string>`COALESCE(SUM(${inventoryMovements.quantity}), 0)::text` })
       .from(inventoryMovements)
-      .where(sql`${inventoryMovements.productId} = ${productId} AND ${inventoryMovements.warehouse} = ${warehouse}`)
+      .where(and(eq(inventoryMovements.productId, productId), eq(inventoryMovements.warehouse, warehouse)))
 
     return row?.total ?? '0'
   }
