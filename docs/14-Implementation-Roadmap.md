@@ -33,12 +33,14 @@ This roadmap is the ordered plan for improving My Retail Shop as a dependable re
 
 Audit and then remediate in small, independently testable changes. The initial static review is recorded in [Phase 1 Financial and Inventory Integrity Audit](26-Phase-1-Financial-Inventory-Integrity-Audit.md); runtime verification and remediation remain open:
 
-1. **Inventory costing policy** — [ADR-002](27-ADR-002-Inventory-Costing-and-Warehouse-Policy.md) accepted.
-   - Use perpetual moving weighted average per product and warehouse.
-   - Prohibit negative stock; validate and serialize stock-outs inside the transaction.
-   - Track quantity and carrying value per product/warehouse; aggregate to the existing INVENTORY control account.
-   - Derive COGS on the server and preserve immutable historical cost/value snapshots.
-   - Complete historical valuation preflight and owner-approved cutover before enabling new posting behavior.
+1. **Inventory costing policy** — [ADR-002](27-ADR-002-Inventory-Costing-and-Warehouse-Policy.md) accepted; [ADR-003](28-ADR-003-Inventory-Valuation-Persistence-and-Concurrency.md) defines the proposed persistence and locking model.
+   - [x] Read-only historical valuation preflight implemented (PR #20 and follow-up PR #21).
+   - [x] Pure exact-decimal MWAC engine implemented (PR #23).
+   - [ ] Review/accept ADR-003 persistence and concurrency design.
+   - [ ] Additive valuation-event and balance-projection schema migration with PostgreSQL constraints.
+   - [ ] Implement transaction-scoped stock/valuation service and concurrency tests.
+   - [ ] Derive purchase receipt value and sale COGS on the server; preserve immutable line snapshots.
+   - [ ] Complete opening valuation, damage/correction policies, reconciliation, and owner-approved cutover before enabling new posting behavior.
 2. **Atomic transaction boundaries**
    - Verify sale, purchase, expense, receipt, supplier payment, return, and reversal flows.
    - Ensure all dependent rows commit or roll back together.

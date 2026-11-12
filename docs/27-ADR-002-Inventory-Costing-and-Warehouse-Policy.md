@@ -13,6 +13,8 @@ A costing-policy decision is necessary before changing financial calculations. T
 
 ## 2. Accepted decisions
 
+The persistence and locking design that implements these policies is proposed separately in [ADR-003](28-ADR-003-Inventory-Valuation-Persistence-and-Concurrency.md).
+
 ### 2.1 Costing method: perpetual moving weighted average
 
 Use **perpetual moving weighted average cost (MWAC)** per product and warehouse.
@@ -72,7 +74,7 @@ Quantity and carrying value are tracked for each product in each warehouse.
    - Round a partial issue's total COGS to the nearest currency minor unit using round-half-up.
    - When an issue fully depletes the balance, consume the exact remaining carrying value. This assigns any accumulated rounding residual to the final issue and guarantees zero value at zero quantity.
    - Calculate and round each purchase line's net acquisition value to currency minor units before passing it to the costing engine. The caller must apply the approved discount allocation; the engine must not guess at tax, freight, or other landed costs.
-9. For every posted event, inventory valuation subledger movement and GL inventory control movement must agree exactly at the posted currency precision.
+10. For every posted event, inventory valuation subledger movement and GL inventory control movement must agree exactly at the posted currency precision.
 
 ## 4. Historical-data migration and cutover — mandatory gate
 
