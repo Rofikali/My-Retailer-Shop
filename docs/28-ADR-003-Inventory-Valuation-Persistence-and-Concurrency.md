@@ -45,6 +45,7 @@ Rules:
 - value_delta is signed. For a sale, its absolute value is the line's COGS; the inventory value reduction is negative.
 - quantity_after and carrying_value_after are audit snapshots, not editable balances.
 - Updates and deletes are prohibited by database-level protection, matching the append-only ledger pattern. Corrections use a new compensating event.
+- Once a movement has a valuation event, that source movement is also protected from updates and deletes so the event cannot become detached from the facts it records.
 - Events are inserted in the same transaction as their source movement, source document, and corresponding GL posting.
 
 ### 2.2 inventory_valuation_balances — concurrency-safe current projection
