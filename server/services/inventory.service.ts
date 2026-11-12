@@ -15,13 +15,13 @@ function quantityToScaled(value: number, field: string): bigint {
   if (!Number.isFinite(value) || value <= 0) {
     throw new RangeError(`${field} must be a finite, positive quantity.`)
   }
-  const match = /^(0|[1-9]\\d*)(?:\\.(\\d{1,2}))?$/.exec(value.toString())
+  const match = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(value.toString())
   if (!match) throw new RangeError(`${field} must have at most two decimal places.`)
   return BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
 }
 
 function storedQuantityToScaled(value: string): bigint {
-  const match = /^(-?)(0|[1-9]\\d*)(?:\\.(\\d{1,2}))?$/.exec(value)
+  const match = /^(-?)(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(value)
   if (!match) throw new RangeError('Stored inventory quantity has an invalid decimal representation.')
   const scaled = BigInt(match[2]!) * 100n + BigInt((match[3] ?? '').padEnd(2, '0'))
   return match[1] === '-' ? -scaled : scaled
