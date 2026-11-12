@@ -84,7 +84,11 @@ describe('PurchaseInput', () => {
   }
 
   it('requires a supplier even for a cash purchase (unlike sales, which allow walk-in)', () => {
-    const { supplierId: _supplierId, ...withoutSupplier } = validPurchase
+    const withoutSupplier = {
+      purchaseDate: validPurchase.purchaseDate,
+      paymentMode: validPurchase.paymentMode,
+      items: validPurchase.items
+    }
     expect(PurchaseInput.safeParse(withoutSupplier).success).toBe(false)
   })
 
