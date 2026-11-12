@@ -171,6 +171,14 @@ export class InventoryService {
         movementType = 'adjustment'
       }
 
+      if (movementQuantity < 0) {
+        const available = storedQuantityToScaled(await this.repo.getCurrentStockForWarehouse(dbTx, input.productId, warehouse))
+        const required = quantityToScaled(Math.abs(movementQuantity), 'Adjustment quantity')
+        if (available < required) {
+          throw new Error(`Insufficient stock for product ${input.productId} in warehouse ${warehouse}.`)
+        }
+      }
+
       const movement = await this.repo.insertMovement(dbTx, {
         productId: input.productId,
         movementDate: input.adjustmentDate,
