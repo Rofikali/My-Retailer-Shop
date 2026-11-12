@@ -61,6 +61,15 @@ export class SalesService {
 
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
+      // Acquire stock locks before creating financial/source rows. The lock remains
+      // held until this transaction commits or rolls back.
+      await this.inventory.lockStockForWrite(
+        dbTx,
+        input.items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        'Main',
+        'out'
+      )
+
 
       // 1. The sale document itself
       const sale = await this.repo.insertSale(dbTx, {

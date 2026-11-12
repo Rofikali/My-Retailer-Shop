@@ -5,6 +5,18 @@ import { InventoryRepo } from '../repositories/inventory.repo'
 import { LedgerService } from './ledger.service'
 import type { InventoryAdjustmentInputType } from '../utils/validation/inventoryAdjustment'
 
+function quantityToMinorUnits(value: number | string, allowZero = false, allowNegative = false): bigint {
+  const text = String(value)
+  const match = /^(-?)(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(text)
+  if (!match || (!allowNegative && match[1] === '-')) {
+    throw new RangeError('Stock quantity must be a non-negative decimal with at most two places.')
+  }
+  const absolute = BigInt(match[2]!) * 100n + BigInt((match[3] ?? '').padEnd(2, '0'))
+  const scaled = match[1] === '-' ? -absolute : absolute
+  if (!allowZero && scaled <= 0n) throw new RangeError('Stock quantity must be greater than zero.')
+  return scaled
+}
+
 export interface StockLine {
   productId: string
   quantity: number
@@ -51,15 +63,47 @@ export class InventoryService {
     return this.repo.getMovements(productId)
   }
 
+  /**
+   * Acquire the common legacy stock-writer lock and, for outbound movements,
+   * verify availability from movement history while holding that lock.
+   */
+  async lockStockForWrite(tx: Database, lines: StockLine[], warehouse: string, direction: 'in' | 'out') {
+    if (!warehouse.trim() || warehouse !== warehouse.trim()) {
+      throw new TypeError('Warehouse is required and must not contain surrounding whitespace.')
+    }
+    if (lines.length === 0) return
+
+    const quantities = new Map<string, bigint>()
+    for (const line of lines) {
+      const quantity = quantityToMinorUnits(line.quantity)
+      quantities.set(line.productId, (quantities.get(line.productId) ?? 0n) + quantity)
+    }
+
+    const productIds = [...quantities.keys()].sort()
+    await this.repo.lockProductsForStockWrite(tx, productIds)
+
+    if (direction === 'out') {
+      for (const productId of productIds) {
+        const available = quantityToMinorUnits(await this.repo.getWarehouseStock(tx, productId, warehouse), true, true)
+        const requested = quantities.get(productId)!
+        if (requested > available) {
+          throw new Error(`Insufficient stock for product ${productId} in warehouse ${warehouse}: available ${available} minor units, requested ${requested} minor units.`)
+        }
+      }
+    }
+  }
+
   async deduct(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
+    const warehouse = opts.warehouse ?? 'Main'
+    await this.lockStockForWrite(tx, lines, warehouse, 'out')
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
         productId: l.productId,
         movementDate: opts.movementDate,
         type: 'sale' as const,
         quantity: String(-Math.abs(l.quantity)), // sales always reduce stock
-        warehouse: opts.warehouse ?? 'Main',
+        warehouse,
         remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
@@ -70,13 +114,15 @@ export class InventoryService {
 
   async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
+    const warehouse = opts.warehouse ?? 'Main'
+    await this.lockStockForWrite(tx, lines, warehouse, 'in')
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
         productId: l.productId,
         movementDate: opts.movementDate,
         type: 'purchase' as const,
         quantity: String(Math.abs(l.quantity)), // purchases always increase stock
-        warehouse: opts.warehouse ?? 'Main',
+        warehouse,
         remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
@@ -107,10 +153,6 @@ export class InventoryService {
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
 
-      const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
-      if (!product) throw new Error('Product not found')
-      const costPrice = Number(product.costPrice ?? 0)
-
       let movementQuantity: number
       let movementType: 'opening' | 'damage' | 'adjustment'
 
@@ -124,6 +166,17 @@ export class InventoryService {
         movementQuantity = input.quantity // correction: sign as given
         movementType = 'adjustment'
       }
+
+      await this.lockStockForWrite(
+        dbTx,
+        [{ productId: input.productId, quantity: Math.abs(movementQuantity) }],
+        input.warehouse,
+        movementQuantity < 0 ? 'out' : 'in'
+      )
+
+      const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
+      if (!product) throw new Error('Product not found')
+      const costPrice = Number(product.costPrice ?? 0)
 
       const movement = await this.repo.insertMovement(dbTx, {
         productId: input.productId,

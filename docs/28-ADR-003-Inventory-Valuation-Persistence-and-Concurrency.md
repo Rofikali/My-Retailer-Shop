@@ -76,6 +76,18 @@ Rules:
 
 All valuation writes run inside the source document's existing PostgreSQL transaction. No nested transaction or independent commit is allowed.
 
+### Legacy writer coordination before MWAC integration
+
+The current sales, purchase, and manual-adjustment workflows still write quantity-only inventory movements. Until those workflows are migrated to valuation balances, they must share one transaction-scoped serialization lock:
+
+- Lock the affected `products` rows with `SELECT ... FOR UPDATE`, ordered by product ID, before writing source documents, party-ledger rows, or general-ledger rows.
+- Aggregate duplicate lines by product before checking stock.
+- For outbound movements, calculate the product + warehouse quantity from `inventory_movements` only after acquiring the product lock; reject any write that would make available stock negative.
+- Sales, purchases, damage, and count corrections must use the same lock protocol. Inbound purchases also acquire the lock so they cannot race an outbound stock check.
+- Hold the product locks until the caller-owned transaction commits or rolls back.
+- This product-level lock is intentionally coarser than the eventual product + warehouse valuation-balance lock. It is a safe transition mechanism, not the final concurrency model.
+- When MWAC posting is integrated, acquire this same product lock before locking the valuation balance, then follow the valuation event/balance protocol below. No stock writer may bypass the shared lock during transition.
+
 For each operation:
 
 1. Normalize and aggregate duplicate lines by product + warehouse before locking.
