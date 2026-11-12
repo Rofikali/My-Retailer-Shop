@@ -171,6 +171,66 @@ export class ReportService {
     }
   }
 
+  /**
+   * Read-only evidence report for the inventory-costing migration. This is not a
+   * valuation calculation: legacy movement rows do not carry complete value snapshots.
+   */
+  async inventoryValuationPreflight() {
+    const [rows, inventoryControlBalance] = await Promise.all([
+      this.inventory.valuationPreflight(),
+      this.ledger.balanceOf(['INVENTORY'])
+    ])
+
+    const productsByWarehouse = rows.map((row) => ({
+      productId: row.product_id,
+      productCode: row.product_code,
+      productName: row.product_name,
+      warehouse: row.warehouse,
+      currentQuantity: Number(row.current_quantity),
+      movementCount: Number(row.movement_count),
+      purchaseMovementCount: Number(row.purchase_movement_count),
+      saleMovementCount: Number(row.sale_movement_count),
+      manualMovementCount: Number(row.manual_movement_count),
+      unlinkedSourceMovementCount: Number(row.unlinked_source_movement_count),
+      negativeStock: Number(row.current_quantity) < 0,
+      requiresOwnerReview: Number(row.manual_movement_count) > 0 ||
+        Number(row.unlinked_source_movement_count) > 0 || Number(row.current_quantity) < 0
+    }))
+
+    const totals = productsByWarehouse.reduce((total, row) => ({
+      productWarehouseBalances: total.productWarehouseBalances + 1,
+      movementCount: total.movementCount + row.movementCount,
+      purchaseMovementCount: total.purchaseMovementCount + row.purchaseMovementCount,
+      saleMovementCount: total.saleMovementCount + row.saleMovementCount,
+      manualMovementCount: total.manualMovementCount + row.manualMovementCount,
+      unlinkedSourceMovementCount: total.unlinkedSourceMovementCount + row.unlinkedSourceMovementCount,
+      negativeStockBalances: total.negativeStockBalances + (row.negativeStock ? 1 : 0),
+      balancesRequiringOwnerReview: total.balancesRequiringOwnerReview + (row.requiresOwnerReview ? 1 : 0)
+    }), {
+      productWarehouseBalances: 0, movementCount: 0, purchaseMovementCount: 0,
+      saleMovementCount: 0, manualMovementCount: 0, unlinkedSourceMovementCount: 0,
+      negativeStockBalances: 0, balancesRequiringOwnerReview: 0
+    })
+
+    return {
+      generatedAt: new Date().toISOString(),
+      mode: 'read_only_preflight',
+      valuationCalculated: false,
+      inventoryControlBalance,
+      totals,
+      readyForCutover: totals.manualMovementCount === 0 &&
+        totals.unlinkedSourceMovementCount === 0 && totals.negativeStockBalances === 0,
+      limitations: [
+        'Legacy inventory movements contain quantity but no immutable carrying-value snapshot.',
+        'Purchase and sale source links are checked by product; this report does not prove historical valuation or line-quantity equality.',
+        'Opening, damage, and adjustment movements require an owner-approved valuation treatment.',
+        'The General Ledger INVENTORY balance is shown as a control total; it is not allocated to products or warehouses here.',
+        'No values are inferred from the current product cost price, and no records are changed.'
+      ],
+      productsByWarehouse
+    }
+  }
+
   async dataQualityReview() {
     const [profiles, customerRows, supplierRows, productRows, ledgerRows, partyRows, saleRows, purchaseRows, expenseRows] = await Promise.all([
       this.database.select().from(businessProfile),
