@@ -26,7 +26,7 @@ export interface PurchaseMoneyTotals {
   totalAmount: string
 }
 
-function decimalToScaledInteger(value: number, field: string): bigint {
+function decimalToScaledInteger(value: number, field: string, maximumScaled: bigint): bigint {
   if (!Number.isFinite(value) || value < 0) {
     throw new RangeError(`${field} must be a finite, non-negative number.`)
   }
@@ -39,7 +39,9 @@ function decimalToScaledInteger(value: number, field: string): bigint {
 
   const whole = BigInt(match[1])
   const fraction = BigInt((match[2] ?? '').padEnd(2, '0'))
-  return whole * 100n + fraction
+  const scaled = whole * 100n + fraction
+  if (scaled > maximumScaled) throw new RangeError(`${field} exceeds the database numeric precision.`)
+  return scaled
 }
 
 function formatScaledInteger(value: bigint): string {
@@ -64,9 +66,10 @@ export function calculatePurchaseMoney(lines: PurchaseMoneyLineInput[]): Purchas
 
   let totalMinorUnits = 0n
   const calculatedLines = lines.map((line, index): PurchaseMoneyLine => {
-    const quantity = decimalToScaledInteger(line.quantity, `Line ${index + 1} quantity`)
-    const unitCost = decimalToScaledInteger(line.unitCost, `Line ${index + 1} unit cost`)
-    const discount = decimalToScaledInteger(line.discount ?? 0, `Line ${index + 1} discount`)
+    // Match database numeric(10,2) quantity and numeric(12,2) money columns.
+    const quantity = decimalToScaledInteger(line.quantity, `Line ${index + 1} quantity`, 9_999_999_999n)
+    const unitCost = decimalToScaledInteger(line.unitCost, `Line ${index + 1} unit cost`, 999_999_999_999n)
+    const discount = decimalToScaledInteger(line.discount ?? 0, `Line ${index + 1} discount`, 999_999_999_999n)
 
     if (quantity <= 0n) throw new RangeError(`Line ${index + 1} quantity must be greater than zero.`)
 
@@ -87,6 +90,10 @@ export function calculatePurchaseMoney(lines: PurchaseMoneyLineInput[]): Purchas
       netAcquisitionMinorUnits: net.toString()
     }
   })
+
+  if (totalMinorUnits > 999_999_999_999n) {
+    throw new RangeError('Purchase total exceeds the database numeric precision.')
+  }
 
   return {
     lines: calculatedLines,
