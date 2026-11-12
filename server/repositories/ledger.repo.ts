@@ -4,8 +4,8 @@ import { ledgerEntries, accounts } from '../db/schema'
 
 export interface PostLine {
   accountCode: string
-  debit?: number
-  credit?: number
+  debit?: number | string
+  credit?: number | string
   customerId?: string
   supplierId?: string
   reversesEntryId?: string
