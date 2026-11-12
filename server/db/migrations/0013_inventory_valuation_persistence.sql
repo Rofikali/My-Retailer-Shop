@@ -130,7 +130,7 @@ BEGIN
   SELECT * INTO source_movement
   FROM "inventory_movements"
   WHERE "id" = NEW."inventory_movement_id"
-  FOR KEY SHARE;
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Inventory valuation event requires an existing stock movement.'
