@@ -39,14 +39,17 @@ Audit and then remediate in small, independently testable changes. The initial s
    - [x] Review/accept ADR-003 persistence and concurrency design (PR #24).
    - [x] Additive valuation-event and balance-projection schema migration with PostgreSQL constraints (PR #25).
    - [x] Implement transaction-scoped stock/valuation service and concurrency tests (PR #26).
+   - [x] Enforce the shared product-row lock order and reject legacy writes to MWAC-active scopes (PR #31).
+   - [ ] Review ADR-005 for an owner-approved legacy opening-valuation transition before any live MWAC posting.
    - [ ] Derive purchase receipt value and sale COGS on the server; preserve immutable line snapshots.
    - [ ] Complete opening valuation, damage/correction policies, reconciliation, and owner-approved cutover before enabling new posting behavior.
 2. **Atomic transaction boundaries**
    - Verify sale, purchase, expense, receipt, supplier payment, return, and reversal flows.
    - Ensure all dependent rows commit or roll back together.
 3. **Concurrent stock protection**
-   - Prevent two simultaneous sales from consuming the same available stock.
-   - Define and test negative-stock policy explicitly.
+   - [x] Serialize legacy sales, purchases, and manual adjustments through the shared product-row lock; reject legacy writes to MWAC-active scopes (PR #31).
+   - [x] Enforce aggregate stock availability under the lock for legacy outbound operations (PR #29).
+   - Define and test negative-stock policy explicitly for every movement type and future posting workflow.
 4. **Credit and allocation integrity**
    - Enforce customer credit limits inside the transaction.
    - Prevent receipt/payment allocations from exceeding outstanding balances under concurrency.
