@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
 import {
   inventoryMovements,
@@ -95,7 +96,7 @@ describe('Inventory valuation persistence constraints', () => {
   it('prevents event updates and deletes at the database layer', async () => {
     await expect(testDb.update(inventoryValuationEvents)
       .set({ carryingValueAfter: '101.00' })
-      .where((await import('drizzle-orm')).eq(inventoryValuationEvents.id, eventId)))
+      .where(eq(inventoryValuationEvents.id, eventId)))
       .rejects.toThrow(/immutable/i)
 
     await expect(testDb.delete(inventoryValuationEvents)
