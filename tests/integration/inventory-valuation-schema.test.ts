@@ -104,6 +104,17 @@ describe('Inventory valuation persistence constraints', () => {
       .rejects.toThrow(/immutable/i)
   })
 
+  it('prevents changing or deleting a movement after it has a valuation event', async () => {
+    await expect(testDb.update(inventoryMovements)
+      .set({ quantity: '11.00' })
+      .where(eq(inventoryMovements.id, movementId)))
+      .rejects.toThrow(/linked to a valuation event is immutable/i)
+
+    await expect(testDb.delete(inventoryMovements)
+      .where(eq(inventoryMovements.id, movementId)))
+      .rejects.toThrow(/linked to a valuation event is immutable/i)
+  })
+
   it('allows negative legacy quantity only while the valuation is uninitialized', async () => {
     await testDb.insert(inventoryValuationBalances).values({
       productId,
