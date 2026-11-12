@@ -3,7 +3,7 @@
 - **Status:** Proposed for review
 - **Date:** 2026-11-12
 - **Scope:** Single-shop RetailShop ERP inventory posting
-- **Depends on:** ADR-002, ADR-003, PRs #19, #23, #24, #25, #26, #27, and #29
+- **Depends on:** ADR-002, ADR-003, PRs #19, #20, #21, #23, #24, #25, #26, #27, #29, and #31
 
 ## 1. Context
 
@@ -30,7 +30,7 @@ For example:
 
 This rejection is safer than silently corrupting the valuation, but it would create an avoidable operational failure. The same issue applies to manual opening, damage, and count-correction movements.
 
-The product-row lock added in PR #29 is necessary but not sufficient: it serializes writers, but it does not make a legacy movement part of the MWAC valuation ledger.
+PR #29 added aggregate stock checks under the product-row lock. PR #31 then made the writer boundary explicit: both MWAC and legacy services acquire the same product-row lock before the valuation-balance lock/check, and legacy writers reject MWAC-active scopes. This serializes the state decision but does not make a legacy movement part of the MWAC valuation ledger.
 
 ## 3. Required writer invariant
 
@@ -40,7 +40,7 @@ For each product + warehouse, every stock-changing operation must follow exactly
 - **MWAC-active state:** every new stock-changing operation must atomically write its source movement, immutable valuation event, balance projection, and matching financial posting. No legacy quantity-only writer may modify this scope.
 - **Opening transition:** changing an uninitialized scope to MWAC-active requires an explicit, owner-approved opening valuation with a documented quantity and value, a matching opening event, balance projection, and GL posting in one transaction. It must not be inferred from mutable `products.cost_price`.
 
-All paths must acquire the PR #29 product-row lock before the valuation-balance lock. For multi-product transactions, product locks are acquired in deterministic sorted order before any balance locks.
+All paths must acquire the shared product-row lock enforced by PR #31 before the valuation-balance lock. For multi-product transactions, product locks are acquired in deterministic sorted order before any balance locks.
 
 ## 4. Implementation gate
 
@@ -80,4 +80,4 @@ The preferred implementation is a coordinated stock-writer milestone, not indepe
 
 ## 7. Decision summary
 
-PR #29 establishes serialization for legacy writers. It does not enable MWAC posting. The next implementation must preserve a strict boundary between uninitialized legacy inventory and fully valued inventory. A partial writer migration without a per-scope gate is not safe.
+PR #29 adds aggregate legacy stock availability checks, and PR #31 enforces the shared product-row lock and legacy/MWAC writer boundary. Neither enables live MWAC sales or purchases. ADR-005 defines the proposed owner-approved opening transition for historical stock. The next implementation must preserve a strict boundary between uninitialized legacy inventory and fully valued inventory. A partial writer migration without a per-scope gate is not safe.
