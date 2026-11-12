@@ -61,6 +61,8 @@ export class InventoryRepo {
       sale_movement_count: number
       manual_movement_count: number
       unlinked_source_movement_count: number
+      source_quantity_mismatch_movement_count: number
+      purchase_warehouse_mismatch_movement_count: number
     }>(sql`
       WITH movement_totals AS (
         SELECT
@@ -85,7 +87,46 @@ export class InventoryRepo {
                 WHERE si.sale_id = im.reference_id AND si.product_id = im.product_id
               )
             )
-          ))::int AS unlinked_source_movement_count
+          ))::int AS unlinked_source_movement_count,
+          COUNT(*) FILTER (
+            WHERE im.type = 'purchase'
+              AND im.reference_id IS NOT NULL
+              AND im.reference_type = 'purchase'
+              AND EXISTS (
+                SELECT 1 FROM purchases p
+                WHERE p.id = im.reference_id
+                  AND COALESCE((
+                    SELECT SUM(m.quantity) FROM inventory_movements m
+                    WHERE m.type = 'purchase' AND m.reference_id = im.reference_id AND m.product_id = im.product_id
+                  ), 0) IS DISTINCT FROM COALESCE((
+                    SELECT SUM(pi.quantity) FROM purchase_items pi
+                    WHERE pi.purchase_id = im.reference_id AND pi.product_id = im.product_id
+                  ), 0)
+              )
+            OR im.type = 'sale'
+              AND im.reference_id IS NOT NULL
+              AND im.reference_type = 'sale'
+              AND EXISTS (
+                SELECT 1 FROM sales s
+                WHERE s.id = im.reference_id
+                  AND -COALESCE((
+                    SELECT SUM(m.quantity) FROM inventory_movements m
+                    WHERE m.type = 'sale' AND m.reference_id = im.reference_id AND m.product_id = im.product_id
+                  ), 0) IS DISTINCT FROM COALESCE((
+                    SELECT SUM(si.quantity) FROM sale_items si
+                    WHERE si.sale_id = im.reference_id AND si.product_id = im.product_id
+                  ), 0)
+              )
+          )::int AS source_quantity_mismatch_movement_count,
+          COUNT(*) FILTER (
+            WHERE im.type = 'purchase'
+              AND im.reference_id IS NOT NULL
+              AND im.reference_type = 'purchase'
+              AND EXISTS (
+                SELECT 1 FROM purchases p
+                WHERE p.id = im.reference_id AND p.warehouse IS DISTINCT FROM im.warehouse
+              )
+          )::int AS purchase_warehouse_mismatch_movement_count
         FROM inventory_movements im
         GROUP BY im.product_id, im.warehouse
       ), product_warehouses AS (
@@ -105,7 +146,9 @@ export class InventoryRepo {
         COALESCE(mt.purchase_movement_count, 0)::int AS purchase_movement_count,
         COALESCE(mt.sale_movement_count, 0)::int AS sale_movement_count,
         COALESCE(mt.manual_movement_count, 0)::int AS manual_movement_count,
-        COALESCE(mt.unlinked_source_movement_count, 0)::int AS unlinked_source_movement_count
+        COALESCE(mt.unlinked_source_movement_count, 0)::int AS unlinked_source_movement_count,
+        COALESCE(mt.source_quantity_mismatch_movement_count, 0)::int AS source_quantity_mismatch_movement_count,
+        COALESCE(mt.purchase_warehouse_mismatch_movement_count, 0)::int AS purchase_warehouse_mismatch_movement_count
       FROM product_warehouses pw
       INNER JOIN products p ON p.id = pw.product_id
       LEFT JOIN movement_totals mt
