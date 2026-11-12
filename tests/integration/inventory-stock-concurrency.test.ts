@@ -93,6 +93,19 @@ describe('InventoryService legacy stock-writer serialization', () => {
     expect(Number(movements[0].quantity)).toBe(5)
   })
 
+  it('preserves the adjustment movement type for positive count corrections', async () => {
+    await inventory.adjustStock({
+      productId,
+      adjustmentDate: '2026-08-01',
+      reason: 'correction',
+      quantity: 2,
+      warehouse: 'Main'
+    }, userId)
+
+    const [movement] = await testDb.select().from(inventoryMovements).where(eq(inventoryMovements.productId, productId))
+    expect(movement).toMatchObject({ type: 'adjustment', quantity: '2.00' })
+  })
+
   it('rejects damage and negative corrections that would create negative stock', async () => {
     await expect(inventory.adjustStock({
       productId,
