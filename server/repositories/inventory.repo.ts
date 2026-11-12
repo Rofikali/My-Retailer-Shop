@@ -71,7 +71,7 @@ export class InventoryRepo {
           COUNT(*) FILTER (WHERE im.type = 'purchase')::int AS purchase_movement_count,
           COUNT(*) FILTER (WHERE im.type = 'sale')::int AS sale_movement_count,
           COUNT(*) FILTER (WHERE im.type IN ('opening', 'damage', 'adjustment'))::int AS manual_movement_count,
-          COUNT(*) FILTER (
+          (COUNT(*) FILTER (
             WHERE im.type = 'purchase' AND (
               im.reference_id IS NULL OR NOT EXISTS (
                 SELECT 1 FROM purchase_items pi
@@ -85,7 +85,7 @@ export class InventoryRepo {
                 WHERE si.sale_id = im.reference_id AND si.product_id = im.product_id
               )
             )
-          )::int AS unlinked_source_movement_count
+          ))::int AS unlinked_source_movement_count
         FROM inventory_movements im
         GROUP BY im.product_id, im.warehouse
       ), product_warehouses AS (
