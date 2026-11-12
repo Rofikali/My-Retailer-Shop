@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { Database } from '../db/client'
+import { InventoryRepo } from '../repositories/inventory.repo'
 import {
   inventoryMovements,
   inventoryValuationBalances,
@@ -73,6 +74,9 @@ export class InventoryValuationService {
       throw new RangeError('Acquisition value minor units must be a non-negative integer string.')
     }
     const acquisitionValue = minorUnitsToDecimal(input.acquisitionValueMinorUnits)
+    // Enforce the shared lock order inside the service so callers cannot
+    // accidentally lock a valuation balance before the product row.
+    await new InventoryRepo(tx).lockProductsForStockWrite(tx, [input.productId])
     const balance = await this.lockActiveBalance(tx, input.productId, input.warehouse)
     const transition = receiveMwac(
       {
@@ -132,6 +136,8 @@ export class InventoryValuationService {
   async issue(tx: Database, input: ValuationIssueInput) {
     assertSource(input)
 
+    // Keep the same product-row -> valuation-balance lock order as every writer.
+    await new InventoryRepo(tx).lockProductsForStockWrite(tx, [input.productId])
     const balance = await this.lockActiveBalance(tx, input.productId, input.warehouse)
     const transition = issueMwac(
       {

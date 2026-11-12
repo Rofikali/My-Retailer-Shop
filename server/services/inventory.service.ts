@@ -82,6 +82,16 @@ export class InventoryService {
     const productIds = [...quantities.keys()].sort()
     await this.repo.lockProductsForStockWrite(tx, productIds)
 
+    // Legacy quantity-only writers must never append movements to an MWAC-active
+    // product/warehouse. The shared product lock makes this state check atomic
+    // relative to valuation writers that follow the same lock order.
+    const activeProductIds = await this.repo.getActiveValuationProductIds(tx, productIds, warehouse)
+    if (activeProductIds.length > 0) {
+      throw new Error(
+        `Legacy stock posting is blocked for MWAC-active product(s) in warehouse ${warehouse}: ${activeProductIds.join(', ')}. Use the valuation posting workflow.`
+      )
+    }
+
     if (direction === 'out') {
       for (const productId of productIds) {
         const available = quantityToMinorUnits(await this.repo.getWarehouseStock(tx, productId, warehouse), true, true)
