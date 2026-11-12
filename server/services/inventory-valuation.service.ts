@@ -6,6 +6,7 @@ import {
   inventoryValuationEvents
 } from '../db/schema'
 import { issueMwac, receiveMwac } from '../domain/inventory/mwac'
+import { lockInventoryScopes } from './inventory-write-lock.service'
 
 export interface ValuationSource {
   productId: string
@@ -190,6 +191,10 @@ export class InventoryValuationService {
   }
 
   private async lockActiveBalance(tx: Database, productId: string, warehouse: string) {
+    // Use the same transaction-scoped lock as legacy quantity-only writers. The
+    // unvalued-movement check below is only race-safe when every writer participates.
+    await lockInventoryScopes(tx, [{ productId, warehouse }])
+
     await tx.insert(inventoryValuationBalances).values({
       productId,
       warehouse,
