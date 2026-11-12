@@ -179,3 +179,38 @@ DROP TRIGGER IF EXISTS inventory_valuation_events_prevent_delete ON "inventory_v
 CREATE TRIGGER inventory_valuation_events_prevent_delete
 BEFORE DELETE ON "inventory_valuation_events"
 FOR EACH ROW EXECUTE FUNCTION prevent_inventory_valuation_event_mutation();
+
+--> statement-breakpoint
+-- Once a movement has a valuation event, preserve the source fact as well.
+-- Legacy movements without valuation events retain their existing behavior.
+CREATE OR REPLACE FUNCTION prevent_valued_inventory_movement_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM "inventory_valuation_events"
+    WHERE "inventory_movement_id" = OLD."id"
+  ) THEN
+    RAISE EXCEPTION 'An inventory movement linked to a valuation event is immutable.'
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS inventory_movements_prevent_valued_update ON "inventory_movements";
+--> statement-breakpoint
+CREATE TRIGGER inventory_movements_prevent_valued_update
+BEFORE UPDATE ON "inventory_movements"
+FOR EACH ROW EXECUTE FUNCTION prevent_valued_inventory_movement_mutation();
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS inventory_movements_prevent_valued_delete ON "inventory_movements";
+--> statement-breakpoint
+CREATE TRIGGER inventory_movements_prevent_valued_delete
+BEFORE DELETE ON "inventory_movements"
+FOR EACH ROW EXECUTE FUNCTION prevent_valued_inventory_movement_mutation();
