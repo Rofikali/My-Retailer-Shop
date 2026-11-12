@@ -96,6 +96,31 @@ describe('PurchasesService.recordPurchase', () => {
     expect(entries.some((entry) => Number(entry.credit) === 175)).toBe(true)
   })
 
+  it('uses one exact rounded paise amount for purchase, GL, and supplier ledger', async () => {
+    const result = await purchasesService.recordPurchase(
+      {
+        purchaseDate: '2026-08-01',
+        supplierId,
+        paymentMode: 'credit',
+        dueDate: '2026-08-31',
+        items: [{ productId, quantity: 0.1, unitCost: 0.25 }]
+      },
+      userId
+    )
+
+    expect(result.totalAmount).toBe(0.03)
+
+    const [item] = await testDb.select().from(purchaseItems).where(eq(purchaseItems.purchaseId, result.id))
+    expect(item).toMatchObject({ quantity: '0.10', unitCost: '0.25', discount: '0.00' })
+
+    const entries = await testDb.select().from(ledgerEntries)
+    expect(entries).toHaveLength(2)
+    expect(entries.every((entry) => entry.debit === '0.03' || entry.credit === '0.03')).toBe(true)
+
+    const [partyEvent] = await testDb.select().from(partyLedgerEvents).where(eq(partyLedgerEvents.supplierId, supplierId))
+    expect(partyEvent).toMatchObject({ debit: '0.00', credit: '0.03' })
+  })
+
   it('two purchases from the same supplier accumulate correctly on their ledger (regression test for the exact bug found in the original Excel Supplier Ledger)', async () => {
     // This mirrors the real scenario from the original spreadsheet rebuild: an opening
     // balance, a new credit purchase, and partial payments, and the running balance
