@@ -161,6 +161,37 @@ describe('InventoryValuationService', () => {
     expect(events).toHaveLength(2)
   })
 
+  it('blocks an active balance when an unvalued legacy movement exists in that warehouse', async () => {
+    const mixedHistoryProductId = await createProduct('PRO-MWAC-MIXED-HISTORY-1')
+
+    await testDb.insert(inventoryValuationBalances).values({
+      productId: mixedHistoryProductId,
+      warehouse: 'Main',
+      quantity: '0.00',
+      carryingValue: '0.00',
+      valuationStatus: 'active',
+      version: 0
+    })
+    await testDb.insert(inventoryMovements).values({
+      productId: mixedHistoryProductId,
+      movementDate: '2026-11-12',
+      type: 'purchase',
+      quantity: '2.00',
+      warehouse: 'Main',
+      createdBy: userId
+    })
+
+    await expect(receive({
+      productId: mixedHistoryProductId,
+      quantity: '1.00',
+      acquisitionValueMinorUnits: '100'
+    })).rejects.toThrow(/unvalued legacy movement/i)
+
+    const events = await testDb.select().from(inventoryValuationEvents)
+      .where(eq(inventoryValuationEvents.productId, mixedHistoryProductId))
+    expect(events).toHaveLength(0)
+  })
+
   it('rolls back movement, event, and balance together when the caller aborts its transaction', async () => {
     const rollbackProductId = await createProduct('PRO-MWAC-ROLLBACK-1')
 
