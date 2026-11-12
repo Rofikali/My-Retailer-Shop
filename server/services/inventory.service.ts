@@ -1,6 +1,7 @@
 import { db, type Database } from '../db/client'
 import { inventoryMovements, products } from '../db/schema'
 import { eq } from 'drizzle-orm'
+import { lockInventoryScopes } from './inventory-write-lock.service'
 import { InventoryRepo } from '../repositories/inventory.repo'
 import { LedgerService } from './ledger.service'
 import type { InventoryAdjustmentInputType } from '../utils/validation/inventoryAdjustment'
@@ -8,6 +9,22 @@ import type { InventoryAdjustmentInputType } from '../utils/validation/inventory
 export interface StockLine {
   productId: string
   quantity: number
+}
+
+function quantityToScaled(value: number, field: string): bigint {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${field} must be a finite, positive quantity.`)
+  }
+  const match = /^(0|[1-9]\\d*)(?:\\.(\\d{1,2}))?$/.exec(value.toString())
+  if (!match) throw new RangeError(`${field} must have at most two decimal places.`)
+  return BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
+}
+
+function storedQuantityToScaled(value: string): bigint {
+  const match = /^(-?)(0|[1-9]\\d*)(?:\\.(\\d{1,2}))?$/.exec(value)
+  if (!match) throw new RangeError('Stored inventory quantity has an invalid decimal representation.')
+  const scaled = BigInt(match[2]!) * 100n + BigInt((match[3] ?? '').padEnd(2, '0'))
+  return match[1] === '-' ? -scaled : scaled
 }
 
 /**
@@ -53,13 +70,33 @@ export class InventoryService {
 
   async deduct(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
+    const warehouse = opts.warehouse ?? 'Main'
+    const requestedByProduct = new Map<string, bigint>()
+
+    for (const line of lines) {
+      const requested = quantityToScaled(line.quantity, 'Sale quantity')
+      requestedByProduct.set(line.productId, (requestedByProduct.get(line.productId) ?? 0n) + requested)
+    }
+
+    const scopes = [...requestedByProduct.keys()].map((productId) => ({ productId, warehouse }))
+    await lockInventoryScopes(tx, scopes)
+
+    // The stock read happens only after the shared product/warehouse lock is held.
+    // This serializes legacy sale writes with purchases, adjustments, and MWAC writes.
+    for (const [productId, requested] of requestedByProduct) {
+      const available = storedQuantityToScaled(await this.repo.getCurrentStockForWarehouse(tx, productId, warehouse))
+      if (available < requested) {
+        throw new Error(`Insufficient stock for product ${productId} in warehouse ${warehouse}.`)
+      }
+    }
+
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
         productId: l.productId,
         movementDate: opts.movementDate,
         type: 'sale' as const,
-        quantity: String(-Math.abs(l.quantity)), // sales always reduce stock
-        warehouse: opts.warehouse ?? 'Main',
+        quantity: String(-Math.abs(l.quantity)),
+        warehouse,
         remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
@@ -70,13 +107,15 @@ export class InventoryService {
 
   async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
+    const warehouse = opts.warehouse ?? 'Main'
+    await lockInventoryScopes(tx, lines.map((line) => ({ productId: line.productId, warehouse })))
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
         productId: l.productId,
         movementDate: opts.movementDate,
         type: 'purchase' as const,
-        quantity: String(Math.abs(l.quantity)), // purchases always increase stock
-        warehouse: opts.warehouse ?? 'Main',
+        quantity: String(Math.abs(l.quantity)),
+        warehouse,
         remarks: opts.remarks,
         referenceType: opts.referenceType,
         referenceId: opts.referenceId,
@@ -106,6 +145,8 @@ export class InventoryService {
   async adjustStock(input: InventoryAdjustmentInputType, userId: string) {
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
+      const warehouse = input.warehouse ?? 'Main'
+      await lockInventoryScopes(dbTx, [{ productId: input.productId, warehouse }])
 
       const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
       if (!product) throw new Error('Product not found')
@@ -130,7 +171,7 @@ export class InventoryService {
         movementDate: input.adjustmentDate,
         type: movementType,
         quantity: String(movementQuantity),
-        warehouse: input.warehouse,
+        warehouse,
         remarks: input.remarks || null,
         referenceType: 'manual',
         createdBy: userId
