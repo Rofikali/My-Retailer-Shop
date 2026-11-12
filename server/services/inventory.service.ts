@@ -6,11 +6,14 @@ import { LedgerService } from './ledger.service'
 import type { InventoryAdjustmentInputType } from '../utils/validation/inventoryAdjustment'
 
 
-function quantityToMinorUnits(value: number | string, allowZero = false): bigint {
+function quantityToMinorUnits(value: number | string, allowZero = false, allowNegative = false): bigint {
   const text = String(value)
-  const match = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(text)
-  if (!match) throw new RangeError('Stock quantity must be a non-negative decimal with at most two places.')
-  const scaled = BigInt(match[1]!) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'))
+  const match = /^(-?)(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(text)
+  if (!match || (!allowNegative && match[1] === '-')) {
+    throw new RangeError('Stock quantity must be a non-negative decimal with at most two places.')
+  }
+  const absolute = BigInt(match[2]!) * 100n + BigInt((match[3] ?? '').padEnd(2, '0'))
+  const scaled = match[1] === '-' ? -absolute : absolute
   if (!allowZero && scaled <= 0n) throw new RangeError('Stock quantity must be greater than zero.')
   return scaled
 }
@@ -83,7 +86,7 @@ export class InventoryService {
 
     if (direction === 'out') {
       for (const productId of productIds) {
-        const available = quantityToMinorUnits(await this.repo.getWarehouseStock(tx, productId, warehouse), true)
+        const available = quantityToMinorUnits(await this.repo.getWarehouseStock(tx, productId, warehouse), true, true)
         const requested = quantities.get(productId)!
         if (requested > available) {
           throw new Error(`Insufficient stock for product ${productId} in warehouse ${warehouse}: available ${available} minor units, requested ${requested} minor units.`)
