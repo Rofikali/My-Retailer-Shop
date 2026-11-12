@@ -136,9 +136,7 @@ export class InventoryValuationService {
       { quantity: input.quantity }
     )
 
-    const quantityDelta = minorUnitsToDecimal('0') === '0.00'
-      ? `-${input.quantity}`
-      : `-${input.quantity}`
+    const quantityDelta = `-${input.quantity}`
     const cogsMinorUnits = transition.cogsMinorUnits
     if (cogsMinorUnits === undefined) throw new Error('MWAC issue did not return a COGS value.')
 
