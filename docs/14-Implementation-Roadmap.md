@@ -33,10 +33,12 @@ This roadmap is the ordered plan for improving My Retail Shop as a dependable re
 
 Audit and then remediate in small, independently testable changes. The initial static review is recorded in [Phase 1 Financial and Inventory Integrity Audit](26-Phase-1-Financial-Inventory-Integrity-Audit.md); runtime verification and remediation remain open:
 
-1. **Inventory costing policy**
-   - Select and document the applicable method (for example, weighted average or FIFO) based on real business requirements.
-   - Derive COGS on the server from authoritative inventory cost layers/balances.
-   - Preserve historical unit cost and valuation snapshots on posted transactions.
+1. **Inventory costing policy** — [ADR-002](27-ADR-002-Inventory-Costing-and-Warehouse-Policy.md) accepted.
+   - Use perpetual moving weighted average per product and warehouse.
+   - Prohibit negative stock; validate and serialize stock-outs inside the transaction.
+   - Track quantity and carrying value per product/warehouse; aggregate to the existing INVENTORY control account.
+   - Derive COGS on the server and preserve immutable historical cost/value snapshots.
+   - Complete historical valuation preflight and owner-approved cutover before enabling new posting behavior.
 2. **Atomic transaction boundaries**
    - Verify sale, purchase, expense, receipt, supplier payment, return, and reversal flows.
    - Ensure all dependent rows commit or roll back together.
