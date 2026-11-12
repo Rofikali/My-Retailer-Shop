@@ -36,7 +36,7 @@ Audit and then remediate in small, independently testable changes. The initial s
 1. **Inventory costing policy** — [ADR-002](27-ADR-002-Inventory-Costing-and-Warehouse-Policy.md) accepted; [ADR-003](28-ADR-003-Inventory-Valuation-Persistence-and-Concurrency.md) defines the proposed persistence and locking model.
    - [x] Read-only historical valuation preflight implemented (PR #20 and follow-up PR #21).
    - [x] Pure exact-decimal MWAC engine implemented (PR #23).
-   - [ ] Review/accept ADR-003 persistence and concurrency design.
+   - [x] Review/accept ADR-003 persistence and concurrency design (PR #24).
    - [ ] Additive valuation-event and balance-projection schema migration with PostgreSQL constraints.
    - [ ] Implement transaction-scoped stock/valuation service and concurrency tests.
    - [ ] Derive purchase receipt value and sale COGS on the server; preserve immutable line snapshots.

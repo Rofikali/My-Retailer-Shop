@@ -1,6 +1,6 @@
 # ADR-003: Inventory Valuation Persistence and Transaction Concurrency
 
-- **Status:** Proposed implementation design; requires review before schema implementation
+- **Status:** Accepted for additive schema implementation
 - **Date:** 2026-11-12
 - **Scope:** Single-shop RetailShop ERP, product + warehouse inventory valuation
 - **Depends on:** ADR-001, ADR-002, and the pure MWAC engine merged in PR #23
@@ -41,10 +41,11 @@ Proposed fields:
 Rules:
 
 - Unique inventory_movement_id prevents duplicate valuation for the same stock movement.
-- The event's product, warehouse, quantity delta, and source reference must match the linked inventory movement.
+- A database insert trigger locks the linked inventory movement while verifying the event's product, warehouse, movement type, quantity delta, and source reference, preventing a concurrent source edit from racing event creation.
 - value_delta is signed. For a sale, its absolute value is the line's COGS; the inventory value reduction is negative.
 - quantity_after and carrying_value_after are audit snapshots, not editable balances.
 - Updates and deletes are prohibited by database-level protection, matching the append-only ledger pattern. Corrections use a new compensating event.
+- Once a movement has a valuation event, that source movement is also protected from updates and deletes so the event cannot become detached from the facts it records.
 - Events are inserted in the same transaction as their source movement, source document, and corresponding GL posting.
 
 ### 2.2 inventory_valuation_balances — concurrency-safe current projection
@@ -64,10 +65,11 @@ Proposed fields:
 Rules:
 
 - This table is a mutable projection used for efficient reads and row locking; the immutable valuation events remain the audit source of truth.
-- Enforce non-negative quantity and carrying value. An active zero-quantity balance must have zero carrying value.
+- Active balances must have non-negative quantity and carrying value; an active zero-quantity balance must have zero carrying value. Uninitialized legacy rows may preserve a negative quantity so the migration does not hide historical negative stock; their carrying value must remain zero and they cannot be used for MWAC posting.
 - An uninitialized row means quantity exists or may exist but carrying value has not been approved. Do not treat its zero value as a real valuation.
 - A new product/warehouse with no historical movements may be initialized as active at zero quantity/value.
-- A product/warehouse with any legacy quantity movement must remain uninitialized until an owner-approved opening valuation event is posted and reconciled. Never initialize it from current products.cost_price.
+- A product/warehouse with any legacy quantity movement must remain uninitialized until an owner-approved opening valuation event is posted and reconciled. Preserve its exact signed quantity, including negative balances. Never initialize it from current products.cost_price.
+- When `last_event_id` is present, a database trigger verifies that the event belongs to the same product/warehouse and that its after-snapshots equal the balance projection.
 - The sum of active balances and their valuation events must reconcile to the INVENTORY GL control account before cutover is approved.
 
 ## 3. Locking and transaction protocol
@@ -124,7 +126,7 @@ The service must validate aggregate requested quantity against the locked balanc
 ## 6. Implementation sequence
 
 1. Review and accept this storage/concurrency design.
-2. Add schema and additive migration with database constraints and append-only event protection.
+2. [x] Additive schema and migration with database constraints, legacy-state classification, source-link validation, and append-only event protection (PR #25).
 3. Add PostgreSQL integration tests for schema constraints, source linkage, initialization states, rollback, and row-lock concurrency.
 4. Implement a transaction-scoped valuation repository/service that calls the pure MWAC engine.
 5. Integrate purchase receipt posting, with exact acquisition-value calculation and discount validation.
