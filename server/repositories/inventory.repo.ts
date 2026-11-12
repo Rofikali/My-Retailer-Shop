@@ -1,6 +1,6 @@
 import { and, eq, sql, asc, inArray } from 'drizzle-orm'
 import type { Database } from '../db/client'
-import { products, inventoryMovements, purchases, suppliers } from '../db/schema'
+import { products, inventoryMovements, inventoryValuationBalances, purchases, suppliers } from '../db/schema'
 
 export class InventoryRepo {
   constructor(private db: Database) {}
@@ -191,6 +191,22 @@ export class InventoryRepo {
     }
 
     return rows.map((row) => row.id)
+  }
+
+  /** Find MWAC-active scopes while the caller holds the shared product locks. */
+  async getActiveValuationProductIds(tx: Database, productIds: string[], warehouse: string) {
+    if (productIds.length === 0) return []
+
+    const rows = await tx
+      .select({ productId: inventoryValuationBalances.productId })
+      .from(inventoryValuationBalances)
+      .where(and(
+        inArray(inventoryValuationBalances.productId, productIds),
+        eq(inventoryValuationBalances.warehouse, warehouse),
+        eq(inventoryValuationBalances.valuationStatus, 'active')
+      ))
+
+    return rows.map((row) => row.productId)
   }
 
   /** Read stock only after the product lock has been acquired in this transaction. */
