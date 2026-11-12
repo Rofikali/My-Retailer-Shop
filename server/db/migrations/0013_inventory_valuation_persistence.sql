@@ -214,3 +214,45 @@ DROP TRIGGER IF EXISTS inventory_movements_prevent_valued_delete ON "inventory_m
 CREATE TRIGGER inventory_movements_prevent_valued_delete
 BEFORE DELETE ON "inventory_movements"
 FOR EACH ROW EXECUTE FUNCTION prevent_valued_inventory_movement_mutation();
+
+--> statement-breakpoint
+-- Keep the balance projection anchored to the event it claims is its latest fact.
+CREATE OR REPLACE FUNCTION validate_inventory_valuation_balance_last_event()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  last_event "inventory_valuation_events"%ROWTYPE;
+BEGIN
+  IF NEW."last_event_id" IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO last_event
+  FROM "inventory_valuation_events"
+  WHERE "id" = NEW."last_event_id"
+  FOR KEY SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Inventory valuation balance references a missing valuation event.'
+      USING ERRCODE = '23503';
+  END IF;
+
+  IF last_event."product_id" IS DISTINCT FROM NEW."product_id"
+    OR last_event."warehouse" IS DISTINCT FROM NEW."warehouse"
+    OR last_event."quantity_after" IS DISTINCT FROM NEW."quantity"
+    OR last_event."carrying_value_after" IS DISTINCT FROM NEW."carrying_value"
+  THEN
+    RAISE EXCEPTION 'Inventory valuation balance must match its latest valuation event.'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+DROP TRIGGER IF EXISTS inventory_valuation_balances_validate_last_event ON "inventory_valuation_balances";
+--> statement-breakpoint
+CREATE TRIGGER inventory_valuation_balances_validate_last_event
+BEFORE INSERT OR UPDATE ON "inventory_valuation_balances"
+FOR EACH ROW EXECUTE FUNCTION validate_inventory_valuation_balance_last_event();
