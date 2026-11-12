@@ -115,6 +115,18 @@ describe('Inventory valuation persistence constraints', () => {
       .rejects.toThrow(/linked to a valuation event is immutable/i)
   })
 
+  it('requires the balance to match the event identified as its latest event', async () => {
+    await expect(testDb.insert(inventoryValuationBalances).values({
+      productId,
+      warehouse: 'Other-Warehouse',
+      quantity: '10.00',
+      carryingValue: '100.00',
+      valuationStatus: 'active',
+      lastEventId: eventId,
+      version: 1
+    })).rejects.toThrow(/must match its latest valuation event/i)
+  })
+
   it('allows negative legacy quantity only while the valuation is uninitialized', async () => {
     await testDb.insert(inventoryValuationBalances).values({
       productId,
