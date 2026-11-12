@@ -1,7 +1,7 @@
 import { db, type Database } from '../db/client'
 import { inventoryMovements, products } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { lockInventoryScopes } from './inventory-write-lock.service'
+import { assertLegacyInventoryWriteAllowed, lockInventoryScopes } from './inventory-write-lock.service'
 import { InventoryRepo } from '../repositories/inventory.repo'
 import { LedgerService } from './ledger.service'
 import type { InventoryAdjustmentInputType } from '../utils/validation/inventoryAdjustment'
@@ -80,6 +80,7 @@ export class InventoryService {
 
     const scopes = [...requestedByProduct.keys()].map((productId) => ({ productId, warehouse }))
     await lockInventoryScopes(tx, scopes)
+    await assertLegacyInventoryWriteAllowed(tx, scopes)
 
     // The stock read happens only after the shared product/warehouse lock is held.
     // This serializes legacy sale writes with purchases, adjustments, and MWAC writes.
@@ -108,7 +109,9 @@ export class InventoryService {
   async receive(tx: Database, lines: StockLine[], opts: { movementDate: string; referenceType: string; referenceId: string; createdBy: string; warehouse?: string; remarks?: string }) {
     if (lines.length === 0) return []
     const warehouse = opts.warehouse ?? 'Main'
-    await lockInventoryScopes(tx, lines.map((line) => ({ productId: line.productId, warehouse })))
+    const scopes = lines.map((line) => ({ productId: line.productId, warehouse }))
+    await lockInventoryScopes(tx, scopes)
+    await assertLegacyInventoryWriteAllowed(tx, scopes)
     return tx.insert(inventoryMovements).values(
       lines.map((l) => ({
         productId: l.productId,
@@ -146,7 +149,9 @@ export class InventoryService {
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
       const warehouse = input.warehouse ?? 'Main'
-      await lockInventoryScopes(dbTx, [{ productId: input.productId, warehouse }])
+      const scopes = [{ productId: input.productId, warehouse }]
+      await lockInventoryScopes(dbTx, scopes)
+      await assertLegacyInventoryWriteAllowed(dbTx, scopes)
 
       const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
       if (!product) throw new Error('Product not found')
