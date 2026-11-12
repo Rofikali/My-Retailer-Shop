@@ -100,7 +100,7 @@ describe('Inventory valuation persistence constraints', () => {
       .rejects.toThrow(/immutable/i)
 
     await expect(testDb.delete(inventoryValuationEvents)
-      .where((await import('drizzle-orm')).eq(inventoryValuationEvents.id, eventId)))
+      .where(eq(inventoryValuationEvents.id, eventId)))
       .rejects.toThrow(/immutable/i)
   })
 
