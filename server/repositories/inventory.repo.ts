@@ -47,6 +47,73 @@ export class InventoryRepo {
       .orderBy(asc(products.name))
   }
 
+  /** Read-only migration preflight. It reports quantity and provenance gaps only;
+   *  it deliberately does not infer carrying values from mutable product.costPrice. */
+  async valuationPreflight() {
+    return this.db.execute<{
+      product_id: string
+      product_code: string
+      product_name: string
+      warehouse: string
+      current_quantity: string
+      movement_count: number
+      purchase_movement_count: number
+      sale_movement_count: number
+      manual_movement_count: number
+      unlinked_source_movement_count: number
+    }>(sql`
+      WITH movement_totals AS (
+        SELECT
+          im.product_id,
+          im.warehouse,
+          SUM(im.quantity)::text AS current_quantity,
+          COUNT(*)::int AS movement_count,
+          COUNT(*) FILTER (WHERE im.type = 'purchase')::int AS purchase_movement_count,
+          COUNT(*) FILTER (WHERE im.type = 'sale')::int AS sale_movement_count,
+          COUNT(*) FILTER (WHERE im.type IN ('opening', 'damage', 'adjustment'))::int AS manual_movement_count,
+          (COUNT(*) FILTER (
+            WHERE im.type = 'purchase' AND (
+              im.reference_id IS NULL OR NOT EXISTS (
+                SELECT 1 FROM purchase_items pi
+                WHERE pi.purchase_id = im.reference_id AND pi.product_id = im.product_id
+              )
+            )
+          ) + COUNT(*) FILTER (
+            WHERE im.type = 'sale' AND (
+              im.reference_id IS NULL OR NOT EXISTS (
+                SELECT 1 FROM sale_items si
+                WHERE si.sale_id = im.reference_id AND si.product_id = im.product_id
+              )
+            )
+          ))::int AS unlinked_source_movement_count
+        FROM inventory_movements im
+        GROUP BY im.product_id, im.warehouse
+      ), product_warehouses AS (
+        SELECT product_id, warehouse FROM movement_totals
+        UNION
+        SELECT p.id, COALESCE((SELECT default_warehouse FROM business_profile LIMIT 1), 'Main')
+        FROM products p
+        WHERE NOT EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.id)
+      )
+      SELECT
+        p.id AS product_id,
+        p.code AS product_code,
+        p.name AS product_name,
+        pw.warehouse,
+        COALESCE(mt.current_quantity, '0') AS current_quantity,
+        COALESCE(mt.movement_count, 0)::int AS movement_count,
+        COALESCE(mt.purchase_movement_count, 0)::int AS purchase_movement_count,
+        COALESCE(mt.sale_movement_count, 0)::int AS sale_movement_count,
+        COALESCE(mt.manual_movement_count, 0)::int AS manual_movement_count,
+        COALESCE(mt.unlinked_source_movement_count, 0)::int AS unlinked_source_movement_count
+      FROM product_warehouses pw
+      INNER JOIN products p ON p.id = pw.product_id
+      LEFT JOIN movement_totals mt
+        ON mt.product_id = pw.product_id AND mt.warehouse = pw.warehouse
+      ORDER BY p.name, pw.warehouse
+    `)
+  }
+
   async getMovements(productId: string) {
     return this.db
       .select()
