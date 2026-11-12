@@ -65,6 +65,13 @@ Quantity and carrying value are tracked for each product in each warehouse.
 6. A count correction cannot silently change inventory value without an accounting counterpart. The existing unposted correction behavior must be reviewed and replaced with an explicit, auditable treatment before valuation cutover.
 7. Posted inventory valuation facts are append-only. Corrections use linked compensating events; never rewrite prior costs.
 8. Money calculations use exact decimal arithmetic. Persisted journal values are rounded to the currency's minor unit under one documented rule; weighted-average precision must be sufficient to avoid cumulative rounding drift.
+9. **Deterministic valuation precision and rounding (initial INR implementation):**
+   - Use the existing inventory quantity precision of 2 decimal places for the first implementation; do not silently accept more precision than the database can store.
+   - Represent carrying value and posted COGS as integer currency minor units (paise for INR) in the costing domain. Do not use JavaScript `number` for these calculations.
+   - Keep the weighted-average unit cost as an exact ratio of carrying value to quantity during calculation; do not round the average unit cost before an issue.
+   - Round a partial issue's total COGS to the nearest currency minor unit using round-half-up.
+   - When an issue fully depletes the balance, consume the exact remaining carrying value. This assigns any accumulated rounding residual to the final issue and guarantees zero value at zero quantity.
+   - Calculate and round each purchase line's net acquisition value to currency minor units before passing it to the costing engine. The caller must apply the approved discount allocation; the engine must not guess at tax, freight, or other landed costs.
 9. For every posted event, inventory valuation subledger movement and GL inventory control movement must agree exactly at the posted currency precision.
 
 ## 4. Historical-data migration and cutover — mandatory gate
