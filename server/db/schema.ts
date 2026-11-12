@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check, index, foreignKey, unique
+  pgTable, uuid, text, numeric, date, timestamp, boolean, pgEnum, check, index, foreignKey, unique, integer
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -344,3 +344,72 @@ export const cashTxns = pgTable('cash_txns', {
 // row they describe, which is exactly the class of bug this whole system exists to
 // avoid. Same reasoning for Running Balance - computed with a SQL window function on
 // read, never stored, so it can never go stale relative to the transactions.
+
+
+// ---------------------------------------------------------------------------
+// Inventory valuation (MWAC)
+// ---------------------------------------------------------------------------
+// Immutable valuation facts. Each event must match one inventory movement;
+// the database trigger validates the cross-table source fields.
+export const inventoryValuationEvents = pgTable('inventory_valuation_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  inventoryMovementId: uuid('inventory_movement_id').notNull()
+    .references(() => inventoryMovements.id, { onDelete: 'restrict' }),
+  productId: uuid('product_id').notNull()
+    .references(() => products.id, { onDelete: 'restrict' }),
+  warehouse: text('warehouse').notNull(),
+  eventType: movementTypeEnum('event_type').notNull(),
+  quantityDelta: numeric('quantity_delta', { precision: 10, scale: 2 }).notNull(),
+  valueDelta: numeric('value_delta', { precision: 20, scale: 2 }).notNull(),
+  quantityAfter: numeric('quantity_after', { precision: 20, scale: 2 }).notNull(),
+  carryingValueAfter: numeric('carrying_value_after', { precision: 20, scale: 2 }).notNull(),
+  costingMethodVersion: text('costing_method_version').notNull().default('mwac-v1'),
+  referenceType: text('reference_type'),
+  referenceId: uuid('reference_id'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  movementUnique: unique('inventory_valuation_events_movement_unique').on(table.inventoryMovementId),
+  nonNegativeSnapshot: check(
+    'inventory_valuation_events_snapshot_non_negative',
+    sql`${table.quantityAfter} >= 0 AND ${table.carryingValueAfter} >= 0`
+  ),
+  productWarehouseCreatedIdx: index('inventory_valuation_events_product_warehouse_created_idx')
+    .on(table.productId, table.warehouse, table.createdAt),
+  referenceIdx: index('inventory_valuation_events_reference_idx')
+    .on(table.referenceType, table.referenceId)
+}))
+
+// Mutable, lockable current-state projection. Legacy rows are explicitly
+// uninitialized; their zero carrying value is a sentinel, never a valuation.
+export const inventoryValuationBalances = pgTable('inventory_valuation_balances', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  productId: uuid('product_id').notNull()
+    .references(() => products.id, { onDelete: 'restrict' }),
+  warehouse: text('warehouse').notNull(),
+  quantity: numeric('quantity', { precision: 20, scale: 2 }).notNull().default('0'),
+  carryingValue: numeric('carrying_value', { precision: 20, scale: 2 }).notNull().default('0'),
+  valuationStatus: text('valuation_status').notNull().default('uninitialized'),
+  lastEventId: uuid('last_event_id')
+    .references(() => inventoryValuationEvents.id, { onDelete: 'restrict' }),
+  version: integer('version').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  productWarehouseUnique: unique('inventory_valuation_balances_product_warehouse_unique')
+    .on(table.productId, table.warehouse),
+  validState: check(
+    'inventory_valuation_balances_valid_state',
+    sql`(
+      ${table.valuationStatus} = 'uninitialized'
+      AND ${table.carryingValue} = 0
+      AND ${table.lastEventId} IS NULL
+    ) OR (
+      ${table.valuationStatus} = 'active'
+      AND ${table.quantity} >= 0
+      AND ${table.carryingValue} >= 0
+      AND (${table.quantity} <> 0 OR ${table.carryingValue} = 0)
+    )`
+  ),
+  versionNonNegative: check('inventory_valuation_balances_version_non_negative', sql`${table.version} >= 0`),
+  statusIdx: index('inventory_valuation_balances_status_idx').on(table.valuationStatus)
+}))
