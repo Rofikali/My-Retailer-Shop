@@ -79,7 +79,7 @@ All valuation writes run inside the source document's existing PostgreSQL transa
 For each operation:
 
 1. Normalize and aggregate duplicate lines by product + warehouse before locking.
-2. Sort lock keys deterministically by product ID, then warehouse, to reduce deadlock risk.
+2. Acquire a shared PostgreSQL transaction-scoped advisory lock for every product + warehouse key, in deterministic product-ID then warehouse order. Legacy quantity-only writers must use this same lock before reading stock or writing a movement; this closes the race between their writes and the MWAC legacy-movement check.
 3. Ensure a balance row exists using an insert-on-conflict-safe pattern.
 4. Lock each balance row with SELECT ... FOR UPDATE before reading quantity/value.
 5. Reject an uninitialized balance unless the operation is the explicit approved opening-valuation workflow.
@@ -92,6 +92,8 @@ For each operation:
 For an initial balance-row race, use a unique (product_id, warehouse) constraint plus INSERT ... ON CONFLICT DO NOTHING, then lock and read the row. Do not rely on an unlocked read followed by an update.
 
 The service must validate aggregate requested quantity against the locked balance. Two concurrent issues for the same product/warehouse must serialize; the second transaction must see the first transaction's committed result and reject if stock is insufficient.
+
+During the transition period, legacy stock writers also acquire the shared advisory lock. Legacy writes are rejected after a product/warehouse has an active MWAC event, because a quantity-only movement would make its valuation projection stale. Legacy balances remain on the legacy path until owner-approved opening valuation; a valued write must reject if any unvalued legacy movement exists.
 
 ## 4. Source-line accounting snapshots
 

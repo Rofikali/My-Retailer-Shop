@@ -45,8 +45,9 @@ Audit and then remediate in small, independently testable changes. The initial s
    - Verify sale, purchase, expense, receipt, supplier payment, return, and reversal flows.
    - Ensure all dependent rows commit or roll back together.
 3. **Concurrent stock protection**
-   - Prevent two simultaneous sales from consuming the same available stock.
-   - Define and test negative-stock policy explicitly.
+   - [x] Add shared product/warehouse transaction locks across legacy stock writers and MWAC writes; reject legacy writes after a scope becomes MWAC-valued (PR #28).
+   - [x] Enforce aggregate stock availability inside the transaction for legacy sale deductions and negative manual adjustments (PR #28).
+   - Define and test negative-stock policy explicitly for every movement type and future posting workflow.
 4. **Credit and allocation integrity**
    - Enforce customer credit limits inside the transaction.
    - Prevent receipt/payment allocations from exceeding outstanding balances under concurrency.

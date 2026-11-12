@@ -1,4 +1,4 @@
-import { eq, sql, asc } from 'drizzle-orm'
+import { and, eq, sql, asc } from 'drizzle-orm'
 import type { Database } from '../db/client'
 import { products, inventoryMovements, purchases, suppliers } from '../db/schema'
 
@@ -171,6 +171,17 @@ export class InventoryRepo {
       .from(inventoryMovements)
       .where(eq(inventoryMovements.productId, productId))
     return Number(row?.total ?? 0)
+  }
+
+  async getCurrentStockForWarehouse(tx: Database, productId: string, warehouse: string): Promise<string> {
+    const [row] = await tx
+      .select({ total: sql<string>`COALESCE(SUM(${inventoryMovements.quantity}), 0)::text` })
+      .from(inventoryMovements)
+      .where(and(
+        eq(inventoryMovements.productId, productId),
+        eq(inventoryMovements.warehouse, warehouse)
+      ))
+    return row?.total ?? '0'
   }
 
   async insertMovement(tx: Database, values: typeof inventoryMovements.$inferInsert) {
