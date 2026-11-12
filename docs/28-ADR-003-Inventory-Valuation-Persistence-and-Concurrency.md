@@ -69,6 +69,7 @@ Rules:
 - An uninitialized row means quantity exists or may exist but carrying value has not been approved. Do not treat its zero value as a real valuation.
 - A new product/warehouse with no historical movements may be initialized as active at zero quantity/value.
 - A product/warehouse with any legacy quantity movement must remain uninitialized until an owner-approved opening valuation event is posted and reconciled. Preserve its exact signed quantity, including negative balances. Never initialize it from current products.cost_price.
+- When `last_event_id` is present, a database trigger verifies that the event belongs to the same product/warehouse and that its after-snapshots equal the balance projection.
 - The sum of active balances and their valuation events must reconcile to the INVENTORY GL control account before cutover is approved.
 
 ## 3. Locking and transaction protocol
