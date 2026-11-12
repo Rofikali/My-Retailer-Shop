@@ -31,7 +31,7 @@ This roadmap is the ordered plan for improving My Retail Shop as a dependable re
 
 **Purpose:** Ensure a sale or purchase cannot leave the books, stock, or party balances inconsistent.
 
-Audit and then remediate in small, independently testable changes:
+Audit and then remediate in small, independently testable changes. The initial static review is recorded in [Phase 1 Financial and Inventory Integrity Audit](26-Phase-1-Financial-Inventory-Integrity-Audit.md); runtime verification and remediation remain open:
 
 1. **Inventory costing policy**
    - Select and document the applicable method (for example, weighted average or FIFO) based on real business requirements.
