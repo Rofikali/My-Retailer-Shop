@@ -5,6 +5,7 @@ import { testDb, setUpTestDb, closeTestDb } from '../helpers/testDb'
 import { inventoryMovements, products } from '../../server/db/schema'
 import type { Database } from '../../server/db/client'
 import { InventoryService } from '../../server/services/inventory.service'
+import { inventoryValuationService } from '../../server/services/inventory-valuation.service'
 
 describe('InventoryService legacy stock-writer serialization', () => {
   let userId: string
@@ -65,6 +66,43 @@ describe('InventoryService legacy stock-writer serialization', () => {
     expect(movements).toHaveLength(2)
     const currentStock = movements.reduce((total, movement) => total + Number(movement.quantity), 0)
     expect(currentStock).toBe(1)
+  })
+
+  it('blocks legacy purchase and manual adjustment writes to an MWAC-active scope', async () => {
+    await testDb.transaction((tx) => inventoryValuationService.receive(tx as unknown as Database, {
+      productId,
+      warehouse: 'Main',
+      movementDate: '2026-08-01',
+      createdBy: userId,
+      referenceType: 'purchase',
+      quantity: '5.00',
+      acquisitionValueMinorUnits: '5000'
+    }))
+
+    await expect(testDb.transaction((tx) => inventory.receive(
+      tx as unknown as Database,
+      [{ productId, quantity: 1 }],
+      {
+        movementDate: '2026-08-02',
+        referenceType: 'purchase',
+        referenceId: randomUUID(),
+        createdBy: userId,
+        warehouse: 'Main'
+      }
+    ))).rejects.toThrow(/legacy stock posting is blocked.*MWAC-active/i)
+
+    await expect(inventory.adjustStock({
+      productId,
+      adjustmentDate: '2026-08-02',
+      reason: 'correction',
+      quantity: 1,
+      warehouse: 'Main'
+    }, userId)).rejects.toThrow(/legacy stock posting is blocked.*MWAC-active/i)
+
+    const movements = await testDb.select().from(inventoryMovements)
+      .where(eq(inventoryMovements.productId, productId))
+    expect(movements).toHaveLength(1)
+    expect(movements[0].quantity).toBe('5.00')
   })
 
   it('aggregates duplicate product lines before checking available stock', async () => {
