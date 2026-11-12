@@ -69,7 +69,7 @@ export class InventoryValuationService {
   async receive(tx: Database, input: ValuationReceiptInput) {
     assertSource(input)
 
-    if (!/^(0|[1-9]\\d*)$/.test(input.acquisitionValueMinorUnits)) {
+    if (!/^(0|[1-9]\d*)$/.test(input.acquisitionValueMinorUnits)) {
       throw new RangeError('Acquisition value minor units must be a non-negative integer string.')
     }
     const acquisitionValue = minorUnitsToDecimal(input.acquisitionValueMinorUnits)
