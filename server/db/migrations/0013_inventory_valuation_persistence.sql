@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS "inventory_valuation_events" (
 --> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "inventory_valuation_events"
-    ADD CONSTRAINT "inventory_valuation_events_movement_fk"
+    ADD CONSTRAINT "inventory_valuation_events_inventory_movement_id_inventory_movements_id_fk"
     FOREIGN KEY ("inventory_movement_id") REFERENCES "public"."inventory_movements"("id")
     ON DELETE restrict ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -28,7 +28,7 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "inventory_valuation_events"
-    ADD CONSTRAINT "inventory_valuation_events_product_fk"
+    ADD CONSTRAINT "inventory_valuation_events_product_id_products_id_fk"
     FOREIGN KEY ("product_id") REFERENCES "public"."products"("id")
     ON DELETE restrict ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -36,7 +36,7 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "inventory_valuation_events"
-    ADD CONSTRAINT "inventory_valuation_events_created_by_fk"
+    ADD CONSTRAINT "inventory_valuation_events_created_by_users_id_fk"
     FOREIGN KEY ("created_by") REFERENCES "public"."users"("id")
     ON DELETE restrict ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS "inventory_valuation_balances" (
 --> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "inventory_valuation_balances"
-    ADD CONSTRAINT "inventory_valuation_balances_product_fk"
+    ADD CONSTRAINT "inventory_valuation_balances_product_id_products_id_fk"
     FOREIGN KEY ("product_id") REFERENCES "public"."products"("id")
     ON DELETE restrict ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -85,7 +85,7 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "inventory_valuation_balances"
-    ADD CONSTRAINT "inventory_valuation_balances_last_event_fk"
+    ADD CONSTRAINT "inventory_valuation_balances_last_event_id_inventory_valuation_events_id_fk"
     FOREIGN KEY ("last_event_id") REFERENCES "public"."inventory_valuation_events"("id")
     ON DELETE restrict ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
