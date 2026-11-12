@@ -12,7 +12,7 @@ The persistence migration deliberately separates two populations:
 - Product/warehouse scopes with historical inventory movements are created as `uninitialized`. Their quantity is preserved, but carrying value is zero only as a sentinel. It is not a claim that the stock is free.
 - Products with no movement history are initialized as active zero-quantity scopes in the configured default warehouse. They can begin valued posting without inventing a historical value.
 
-The live sale, purchase, and manual-adjustment paths still use legacy quantity-only movements. MWAC receipt/issue services already persist immutable events and balance projections, and reject uninitialized scopes or scopes containing unvalued movements.
+The live sale, purchase, and manual-adjustment paths still use legacy quantity-only movements. MWAC receipt/issue services already persist immutable events and balance projections, and reject uninitialized scopes or scopes containing movements without valuation events. The existing manual `opening` adjustment is not this transition: it calculates a GL amount from mutable `products.cost_price`, so it must remain a legacy operation and must never activate a legacy scope for MWAC.
 
 PR #31 now enforces the shared product-row lock boundary: MWAC services acquire the product lock before the valuation balance; legacy writers acquire the same product lock and reject an active MWAC scope. This serializes the transition decision. It does not itself value historical stock.
 
@@ -35,30 +35,34 @@ The opening operation must run as one PostgreSQL transaction and must:
 9. Post the matching general-ledger opening entry (Debit INVENTORY / Credit CAPITAL or another explicitly approved equity account) in the same transaction.
 10. Commit all effects together or roll all of them back.
 
-A zero-quantity opening baseline movement is a candidate source representation because the current event schema requires each valuation event to reference an inventory movement. It must be validated against all database constraints and reporting assumptions before implementation. It must not be used if zero-quantity movements are semantically or operationally rejected elsewhere; in that case, introduce a dedicated opening-source record and revise the event source contract instead.
+The current event schema requires every valuation event to reference an inventory movement. The preferred first implementation is therefore a zero-quantity `opening` source movement linked to a dedicated owner-approved opening record, with an `opening` valuation event whose quantity delta is zero and whose after-snapshot contains the verified quantity and approved carrying value. The movement is an audit/source anchor, not a physical receipt. Before implementation, verify that zero-quantity movements are accepted by every report and domain invariant. If that cannot be guaranteed, revise the event source contract to support a dedicated opening source instead of forcing a fake stock movement.
 
 ## 3. Legacy history boundary
 
 Historical quantity movements remain immutable historical facts. They are not retroactively assigned guessed unit costs and are not rewritten to appear as MWAC events.
 
-The implementation must introduce an explicit, durable activation boundary for each product/warehouse scope (for example, an `activated_at` timestamp or an equivalent baseline-event reference). The boundary must be set only after the product lock has been acquired and the pre-opening quantity has been verified.
+Do not use timestamps alone as the legacy/valued boundary. Transaction timestamps can be assigned before a transaction waits for the product lock. Instead, add an explicit movement classification (for example, `valuation_state` with `legacy` and `valued` values): backfill all existing movements as `legacy`; preserve `legacy` as the default for existing uninitialized workflows; and have MWAC writers explicitly create `valued` movements. The opening baseline is classified `valued` only when it is linked to the dedicated owner-approved opening record. Keep the opening record and event immutable.
 
 After activation:
 
 - Every new stock-changing application path must use the MWAC-aware workflow.
 - Every new movement must have exactly one matching immutable valuation event.
 - The balance projection must equal the latest event snapshot.
-- The legacy movement history before the boundary remains classified as unvalued legacy history.
-- The unvalued-movement guard must check for unvalued movements after the activation boundary, rather than rejecting the intentionally preserved pre-opening history.
-- All writers must continue to acquire the same product-row lock before reading or changing stock state. A legacy transaction that waited behind the opening transaction must re-read the active state and reject; it must not append a quantity-only movement.
+- Historical rows remain explicitly classified as `legacy`; they are not retroactively assigned valuation events.
+- On an active scope, a database trigger must reject new `legacy` movements after acquiring the product-row lock, while allowing `valued` movements only through the valued workflow.
+- A deferred database constraint/trigger must ensure every new `valued` movement has exactly one matching immutable valuation event by transaction commit. The existing unique movement link on valuation events supports the one-event maximum.
+- The MWAC service's missing-event guard checks only movements classified `valued`; pre-opening legacy rows are intentionally excluded.
+- All application writers continue to acquire the same product-row lock before the valuation-balance lock. A legacy transaction waiting behind opening must re-read the active state and reject; it must not append a quantity-only movement.
 
-The activation boundary and writer protocol require concurrency tests, including transactions that begin before the opening operation and wait on its product lock. A database-level guard should be evaluated if any supported writer can bypass the application service.
+This classification avoids relying on `created_at` or transaction timestamps for ordering. The database trigger and deferred event check are required because application-only checks can be bypassed by another supported writer or future code. Their lock order must be reviewed carefully: product row first, then valuation balance.
 
 ## 4. Accounting and valuation policy
 
 - The opening quantity is the physical quantity verified at the transition, not a new purchase receipt.
 - The opening carrying value is the owner's approved total value for that verified quantity, expressed in paise.
 - The opening event establishes the baseline quantity and carrying value. It must not pretend that the opening quantity was newly received from a supplier.
+- The dedicated opening record is the idempotency/approval source and should capture product, warehouse, verified quantity, approved carrying value in paise, effective date, reason/evidence reference, approving owner, and execution actor.
+- The opening GL reference must point to this opening record, not an unrelated movement ID. Use exact decimal-string paise values for the debit and credit.
 - The corresponding GL debit must equal the opening carrying value exactly. The credit account and approval authority must be explicit and auditable.
 - A zero-quantity scope may only open at zero carrying value unless a separately documented non-stock asset treatment is approved.
 - Negative or uncertain physical quantities block opening; they require a separate reconciliation workflow.
@@ -81,7 +85,9 @@ The activation boundary and writer protocol require concurrency tests, including
 - Owner authorization and negative authorization tests for staff and read-only roles.
 - Rejection of negative legacy stock and movement/balance quantity mismatch.
 - Rejection when the scope is already active.
-- Opening movement/event source linkage and immutable-event trigger coverage.
+- Opening approval-record, zero-quantity source movement, event linkage, and immutable-event trigger coverage.
+- Database trigger rejects a legacy movement inserted into an active scope, including a direct SQL attempt.
+- Deferred constraint rejects a valued movement without its event at commit.
 - Exact opening value, balance snapshot, and GL debit/credit equality.
 - Full transaction rollback when any source, event, balance, or ledger write fails.
 - Concurrent opening attempts: exactly one succeeds.
@@ -104,4 +110,4 @@ This ADR does not authorize:
 
 ## 8. Exit gate
 
-Implementation may begin only after the opening-source representation, activation-boundary semantics, GL equity account, idempotency key, and report treatment are confirmed in code review. Live activation requires owner-approved values, complete writer coverage, exact reconciliation, all CI checks passing, and a separate explicit production authorization.
+Implementation may begin only after the opening-source representation, movement classification and trigger lock order, GL equity account, idempotency key, and report treatment are confirmed in code review. Live activation requires owner-approved values, complete writer coverage, exact reconciliation, all CI checks passing, and a separate explicit production authorization.
