@@ -58,13 +58,20 @@ export class PurchasesService {
 
       await this.repo.insertItems(
         dbTx,
-        money.lines.map((line, index) => ({
-          purchaseId: purchase.id,
-          productId: input.items[index].productId,
-          quantity: line.quantity,
-          unitCost: line.unitCost,
-          discount: line.discount
-        }))
+        money.lines.map((line, index) => {
+          const inputItem = input.items[index]
+          if (!inputItem) {
+            throw new Error(`Purchase line mapping invariant failed at index ${index}.`)
+          }
+
+          return {
+            purchaseId: purchase.id,
+            productId: inputItem.productId,
+            quantity: line.quantity,
+            unitCost: line.unitCost,
+            discount: line.discount
+          }
+        })
       )
 
       const creditAccount = input.paymentMode === 'credit' ? 'CREDITORS' : 'CASH'
