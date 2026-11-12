@@ -41,7 +41,7 @@ Proposed fields:
 Rules:
 
 - Unique inventory_movement_id prevents duplicate valuation for the same stock movement.
-- A database insert trigger verifies the event's product, warehouse, movement type, quantity delta, and source reference against the linked inventory movement.
+- A database insert trigger locks the linked inventory movement while verifying the event's product, warehouse, movement type, quantity delta, and source reference, preventing a concurrent source edit from racing event creation.
 - value_delta is signed. For a sale, its absolute value is the line's COGS; the inventory value reduction is negative.
 - quantity_after and carrying_value_after are audit snapshots, not editable balances.
 - Updates and deletes are prohibited by database-level protection, matching the append-only ledger pattern. Corrections use a new compensating event.
