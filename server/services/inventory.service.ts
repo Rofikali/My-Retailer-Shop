@@ -152,10 +152,6 @@ export class InventoryService {
     return this.database.transaction(async (tx) => {
       const dbTx = tx as unknown as Database
 
-      const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
-      if (!product) throw new Error('Product not found')
-      const costPrice = Number(product.costPrice ?? 0)
-
       let movementQuantity: number
       let movementType: 'opening' | 'damage' | 'adjustment'
 
@@ -167,8 +163,18 @@ export class InventoryService {
         movementType = 'damage'
       } else {
         movementQuantity = input.quantity // correction: sign as given
-        movementType = 'adjustment'
       }
+
+      await this.lockStockForWrite(
+        dbTx,
+        [{ productId: input.productId, quantity: Math.abs(movementQuantity) }],
+        input.warehouse,
+        movementQuantity < 0 ? 'out' : 'in'
+      )
+
+      const [product] = await dbTx.select().from(products).where(eq(products.id, input.productId))
+      if (!product) throw new Error('Product not found')
+      const costPrice = Number(product.costPrice ?? 0)
 
       const movement = await this.repo.insertMovement(dbTx, {
         productId: input.productId,
