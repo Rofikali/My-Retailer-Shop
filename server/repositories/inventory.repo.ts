@@ -73,14 +73,14 @@ export class InventoryRepo {
           COUNT(*) FILTER (WHERE im.type IN ('opening', 'damage', 'adjustment'))::int AS manual_movement_count,
           (COUNT(*) FILTER (
             WHERE im.type = 'purchase' AND (
-              im.reference_id IS NULL OR NOT EXISTS (
+              im.reference_id IS NULL OR im.reference_type IS DISTINCT FROM 'purchase' OR NOT EXISTS (
                 SELECT 1 FROM purchase_items pi
                 WHERE pi.purchase_id = im.reference_id AND pi.product_id = im.product_id
               )
             )
           ) + COUNT(*) FILTER (
             WHERE im.type = 'sale' AND (
-              im.reference_id IS NULL OR NOT EXISTS (
+              im.reference_id IS NULL OR im.reference_type IS DISTINCT FROM 'sale' OR NOT EXISTS (
                 SELECT 1 FROM sale_items si
                 WHERE si.sale_id = im.reference_id AND si.product_id = im.product_id
               )
