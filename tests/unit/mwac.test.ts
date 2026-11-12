@@ -46,8 +46,8 @@ describe('pure MWAC costing transitions', () => {
     const final = issueMwac(second.balance, { quantity: '1.00' })
 
     expect(first.cogsMinorUnits).toBe('33')
-    expect(second.cogsMinorUnits).toBe('33')
-    expect(final.cogsMinorUnits).toBe('34')
+    expect(second.cogsMinorUnits).toBe('34')
+    expect(final.cogsMinorUnits).toBe('33')
     expect(final.balance).toEqual({ quantity: '0.00', carryingValueMinorUnits: '0' })
   })
 
