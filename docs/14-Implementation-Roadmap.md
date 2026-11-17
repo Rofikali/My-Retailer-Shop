@@ -137,3 +137,11 @@ For every implementation milestone:
 8. After merge, verify the resulting main commit and its CI.
 
 Do not start Phase 2 or performance work merely because Phase 1 documentation exists. Phase completion requires evidence, not a checklist being written.
+
+## Live work handoff (2026-11-17)
+
+This document is the **long-term phase plan**, not a second source of NEXT tasks. [Root next.md](../next.md) selects the next bounded job when the owner says "go ahead"; [status/decision register](34-Project-Status-and-Decision-Register.md) distinguishes verified merged work, partial implementation, open drafts and release blockers. See [go-ahead runbook](33-Go-Ahead-Milestone-Runbook.md) and [handoff template](35-Milestone-Handoff-Template.md).
+
+Since the older roadmap checklist was written, merged PRs #29 (serialized legacy stock/no oversell), #30 (all-writer rollout ADR), #31 (legacy/MWAC service boundary), and #27 (exact purchase amounts) have advanced **specific** controls. They did **not** complete all-writer MWAC posting, owner-approved historical opening value, credit/settlement concurrency, or exact financial reporting. PR #32 is still an **open docs-only draft** at the documented 2026-11-17 checkpoint. Security first: the currently READY next.md SEC-01 milestone addresses missing read-only write-role denial; FIN-01 then targets purchase/payable rounding parity. Reconcile with current GitHub before acting.
+
+For the full product and management destination use [ERP product blueprint](31-ERP-Product-Portfolio-and-Delivery-Blueprint.md), the [seven-level review model](32-Seven-Level-Engineering-and-Business-Review.md), and relevant [skills](../SKILLS.md). All production migrations, live valuation transitions, merges and deployment remain separately approval-gated.
