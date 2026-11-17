@@ -4,6 +4,8 @@
 
 **Recorded checkpoint, 2026-11-17:** main `a2ca86053f93e8db8bb746471e6ae418597746cf` with successful [main CI](https://github.com/Rofikali/My-Retailer-Shop/actions/runs/43183781578). [PR #32](https://github.com/Rofikali/My-Retailer-Shop/pull/32) opening-valuation ADR is an **open, unmerged, docs-only draft**; head `5f056349b58e3649ed193b37495458caa06fa580` passed [4/4 CI jobs](https://github.com/Rofikali/My-Retailer-Shop/actions/runs/43185286695). [PR #28](https://github.com/Rofikali/My-Retailer-Shop/pull/28) is an older draft whose locking approach has been superseded by merged #29/#31. Refresh all facts on each new session.
 
+**Governance rollout checkpoint:** [PR #33](https://github.com/Rofikali/My-Retailer-Shop/pull/33) (**DOC-01 — PR_OPEN / CI_PENDING**) proposes this workflow in a **draft documentation PR**. Until #33 is actually merged, this live board exists on its PR branch, **not** on main. On a new "go ahead" while #33 is open, reconcile/review its current diff and exact-head checks first; do not claim these instructions have been merged into main. After an owner-authorized merge, proceed with SEC-01 (or the next updated eligible work item). No approval to merge #33 is implied here.
+
 **Product goal:** dependable, low-cost, one-shop ERP for inventory, sales, purchases, customer/supplier dues, cash and double-entry reporting. Nuxt 4/Vue/TS/Nitro + PostgreSQL/Drizzle modular monolith. **Not** an audited production release, live MWAC cutover, GST e-invoicing platform, paid SaaS or authorization for infrastructure spend.
 
 ## NOW — first eligible bounded work
