@@ -4,6 +4,8 @@ This file is the navigation index for focused, repeatable engineering workflows 
 
 ## Available skills
 
+**Use [live next.md](next.md) as the single next-task selector and [go-ahead runbook](docs/33-Go-Ahead-Milestone-Runbook.md) for task continuation.** Review depth scales with risk; seven engineering levels and CA/MBA/security are review lenses, not separate agents or automatic execution.
+
 | Skill | Use when | Skill instructions |
 |---|---|---|
 | Accounting integrity | Changing sales, purchases, expenses, receipts, payments, inventory valuation, ledgers, or reports | [accounting-integrity](.agents/skills/accounting-integrity/SKILL.md) |
@@ -11,6 +13,10 @@ This file is the navigation index for focused, repeatable engineering workflows 
 | Database migrations | Changing Drizzle schema, constraints, indexes, migrations, backfills, or transaction behavior | [database-migrations](.agents/skills/database-migrations/SKILL.md) |
 | Testing and release verification | Preparing a feature PR, release, deployment, or production-readiness assessment | [testing-release](.agents/skills/testing-release/SKILL.md) |
 | Architecture and performance | Evaluating Rust/WASM, native libraries, queues, caches, service extraction, or performance optimization | [architecture-performance](.agents/skills/architecture-performance/SKILL.md) |
+| Milestone continuation / "go ahead" | Any next-job, progress, PR review, status reconciliation or handoff | [milestone-continuation](.agents/skills/milestone-continuation/SKILL.md) |
+| ERP product, CA/CFO and MBA management | Product direction, accounting business cases, reports, finance and management prioritization | [erp-product-finance](.agents/skills/erp-product-finance/SKILL.md) |
+| HLD/LLD, DDD, hexagonal and design patterns | Cross-module or nontrivial architecture, transaction and design decisions | [architecture-design](.agents/skills/architecture-design/SKILL.md) |
+
 
 ## Skill execution contract
 
