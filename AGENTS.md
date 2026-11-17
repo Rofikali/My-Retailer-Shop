@@ -1,5 +1,18 @@
 # Coding Agent Instructions
 
+## Mandatory live milestone selector and "go ahead" contract (owner-selected, 2026-11-17)
+
+**At the start of work in this repository**, read the short [LIVE NOW/NEXT/LATER board](next.md) and inspect current GitHub main/PR/CI, then only the relevant source/skills. [Continuation runbook](docs/33-Go-Ahead-Milestone-Runbook.md) defines the exact workflow. When the owner says **"go ahead"** in this repo context, select/resume the **highest-priority eligible next.md task** (initially SEC-01), work on one focused branch/PR with evidence, update the task status, and stop before merge. Do not randomly choose another task or redo verified merged work. If the task is blocked, record why and choose a genuinely independent READY task.
+
+**Authority and review:** [Seven engineering levels and CA/CFO/MBA/security/management](docs/32-Seven-Level-Engineering-and-Business-Review.md) are proportional review lenses, not seven required agents. [Product destination](docs/31-ERP-Product-Portfolio-and-Delivery-Blueprint.md), [current evidence/status](docs/34-Project-Status-and-Decision-Register.md), and [milestone handoff](docs/35-Milestone-Handoff-Template.md) complement the existing PRD, HLD, LLD, ADRs and [skills](SKILLS.md). The [roadmap](docs/14-Implementation-Roadmap.md) defines phases; **next.md alone selects live work**.
+
+**Truthful status:** READY/approved direction is not implemented; open PR/CI pass is not merged; merged is not deployed. On every new invocation reconcile against latest main SHA, open PRs, reviews and exact-head CI. Propose truth-backed next.md updates in each bounded PR; after external merge, reconcile actual merge SHA in the next authorized PR. Retain historical evidence and user work. Do not claim shell/Docker tests were run through connector-only GitHub access. Use compact change-scoped CI summaries and only failed-step excerpts; do not weaken mandatory CI.
+
+**Authorization limits:** documentation is not a scheduler/background runner. Do not start monitoring, recurring workflows, automatic merges, deployments, production migrations/backfills/opening valuations, secret rotation, purchase/hosting changes or financial data edits without the owner's explicit approval for that operation. Preserve one-shop Nuxt/Nitro/PostgreSQL architecture and server-enforced accounting/security invariants.
+
+---
+
+
 These instructions apply to the entire repository. Read this file before changing code or documentation. Follow the more specific instructions in a nested AGENTS.md if one is added later, provided it does not weaken the invariants here.
 
 ## 1. Mission and engineering standard

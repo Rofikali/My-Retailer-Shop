@@ -6,16 +6,20 @@ Security doc set this codebase implements — start there before making architec
 
 ## Status
 
+**Live next work:** [NOW/NEXT/LATER](next.md) · [Product plan](docs/31-ERP-Product-Portfolio-and-Delivery-Blueprint.md) · [Seven engineering levels + CA/MBA/security](docs/32-Seven-Level-Engineering-and-Business-Review.md) · [Go-ahead runbook](docs/33-Go-Ahead-Milestone-Runbook.md). A docs PR or CI pass is not a production release.
+
+
 Every core module is implemented, not stubbed: Cash Book, Sales, Purchases, Inventory, Expenses, Customers,
 Suppliers, Admin (Users, Data Quality/Audit Log, Business Settings), all 4 financial reports, and the
 Dashboard — each following the same pattern (repo → service, owning the DB transaction → API → page), with
 `LedgerService` as the single append-only source of truth every one of them posts through.
 
 **Not yet done, and worth knowing about:**
-- **Nothing here has actually been run.** No `npm install`, no live Postgres, no browser — this was all
-  written and syntax-checked (`node --check` on every `.ts` file, plus every `.vue` file's script block)
-  in a sandbox with no network access. Treat it as reviewed-but-unexecuted code, not verified code, until
-  you've run `pnpm run test:all` yourself against a real database.
+- **CI verification exists, but production readiness is not established.** On 2026-11-12, GitHub Actions
+  on main at `a2ca86053f93e8db8bb746471e6ae418597746cf` passed unit/typecheck, PostgreSQL integration,
+  production build/E2E and container-build jobs. This is recorded CI at that SHA, not a test of your live shop
+  database, restore path, staff permissions, historical valuation, or production deployment.
+  See [live next.md](next.md) and [project status register](docs/34-Project-Status-and-Decision-Register.md).
 - **E2E tests run in CI** — local browser installation may require network access; see
   `tests/e2e/critical-flows.spec.ts` and `docs/12-Production-Readiness.md`.
 - **No approval workflow, no double-entry Journal/GL usage** — both are optional extension points, not
