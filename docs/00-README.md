@@ -40,3 +40,15 @@ The product's ERP ambitions do not automatically require multi-tenant SaaS archi
 ## Architecture and runtime policy
 
 The default is a modular monolith with one authoritative PostgreSQL database. Rust, WebAssembly, native libraries, queues, caches, and service extraction are optional tools—not goals. Adopt them only for a measured requirement with a reviewed ADR, correctness tests, deployment evidence, and a rollback plan.
+
+## Live execution and honest delivery status
+
+- [Root next.md](../next.md) — **only live NOW / NEXT / LATER task selector** when owner says "go ahead"; always refresh against GitHub.
+- [31 Product Blueprint](31-ERP-Product-Portfolio-and-Delivery-Blueprint.md) — what the retail ERP aims to build, accounting/business scenarios and explicitly planned capabilities.
+- [32 Seven-Level Engineering, CA/CFO/MBA/Security](32-Seven-Level-Engineering-and-Business-Review.md) — proportional review standards for code and business decisions.
+- [33 Go-Ahead Continuation Runbook](33-Go-Ahead-Milestone-Runbook.md) — exact task selection, PR, CI, stop/resume and no automatic merge/deploy.
+- [34 Project Status and Decision Register](34-Project-Status-and-Decision-Register.md) — merged/partial/blocked/unfinished evidence with SHA and CI caveats.
+- [35 Milestone Handoff Template](35-Milestone-Handoff-Template.md) — reusable small-PR and accounting/security evidence format.
+- [Root skill index](../SKILLS.md) — focused repeatable tasks under .agents/skills/.
+
+**The existing PRD/HLD/LLD are architectural and historical context, not proof of every implemented control.** Main-source/CI evidence and the newer status register supersede stale "production ready" or aspirational-pattern prose. No documentation change enables a released feature, automated background agent or production migration.
